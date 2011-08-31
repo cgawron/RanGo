@@ -1,0 +1,155 @@
+/**
+ *
+ * (C) 2010 Christian Gawron. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * 
+ */
+import java_cup.runtime.*;
+
+import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+/* Preliminaries to set up and use the scanner.  */
+
+parser code 
+{:
+    private static Logger logger = Logger.getLogger(Parser.class.getName());
+
+    public void report_error(String message, Symbol info)
+    {
+	java_cup.runtime.Scanner scanner = getScanner();
+
+	if (scanner instanceof InputPosition) 
+	   throw new ParseError(message, (InputPosition) scanner, info);
+	else 
+	   throw new ParseError(message, info);
+    }
+
+    public void syntax_error(Symbol cur_token)
+    {
+	logger.warning("Syntax error at " + cur_token);
+	report_error("Syntax error", cur_token);
+    }
+
+    public void debug_message(String mess)
+    {
+        if (logger.isLoggable(Level.FINE))
+  	  logger.fine(mess);
+    }
+
+    public Symbol scan() throws java.lang.Exception 
+    {
+        Symbol sym = getScanner().next_token();
+        sym =  (sym!=null) ? sym : new Symbol(EOF_sym());
+	return sym;
+    }
+
+:};
+
+action code 
+{:
+    private static Logger logger = Logger.getLogger(Parser.class.getName());
+:};
+
+
+
+//init with {: scanner.init();              :};
+//scan with {: return scanner.next_token(); :};
+
+/* Terminals (tokens returned by the scanner). */
+terminal           Open, Close, Semi, Property, Value;
+
+/* Non-terminals */
+non terminal            Collection, GameTree, GameTreeList, Sequence, Node, PropertyList, ValueList;
+
+/* Precedences */
+
+/* The grammar */
+Collection   ::= GameTree:gt
+                 {:
+		    GameTree tree = new GameTree((Node) gt);
+		    logger.info("Collection: " + gt.getClass());
+	            RESULT = tree;
+                 :}
+
+	       | Collection:c GameTree:gt
+                 {:
+                    CollectionRoot root;
+		    if (c instanceof GameTree) {
+		       root = new CollectionRoot((GameTree) c);
+                    } 
+		    else {
+                       root = (CollectionRoot) c;
+                    }
+	            GameTree gameTree = new GameTree((Node) gt);
+	            root.add(gameTree.getRoot());
+		    logger.info("Collection: " + c.getClass() + ", " + gt.getClass());
+		    logger.info("Collection: " + root.getChildren().size());
+	            RESULT = root;
+                 :}
+;
+
+GameTree     ::= Open Sequence:s GameTreeList:v Close
+                 {:
+                    ((Sequence) s).addAll((List) v);
+                    RESULT = s;
+                 :}
+;
+
+GameTreeList ::= GameTreeList:l GameTree:gt
+	         {:
+	            ((List) l).add((Sequence) gt);
+                    RESULT = l; 
+                 :}
+               | 
+                 {:
+	            RESULT = new LinkedList();
+                 :}
+;
+
+Sequence     ::= Sequence:s Node:n 
+                 {: 
+                    ((Sequence) s).append((Node) n);
+	            RESULT = s;
+                 :}
+               | Node:n
+                 {:
+	            RESULT = new Sequence((Node) n);
+                 :}
+;
+
+Node ::= Semi PropertyList:pl
+	         {: RESULT = new Node((PropertyList) pl); :}
+;
+
+
+
+
+
+PropertyList ::= PropertyList:pl Property:p  ValueList:vl 
+	         {: ((Property) p).setValue((Value) vl); 
+                    ((PropertyList) pl).add((Property) p);
+	            RESULT = pl; :}
+	       | Property:p  ValueList:vl
+	         {: ((Property) p).setValue((Value) vl); 
+                    RESULT = new PropertyList((Property) p); :}
+;
+
+ValueList    ::= ValueList:vl Value:v 
+	         {: ((Value.ValueList)vl).add((Value) v); 
+	            RESULT = vl; :} 
+	       | Value:v
+	         {: RESULT = AbstractValue.createValueList((Value) v); :} 
+;
