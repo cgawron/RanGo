@@ -46,23 +46,19 @@ public class NeighborhoodEnumeration implements Enumeration<Point>
 			switch (direction) {
 			case 0:
 				if (point.getX() + 1 < size)
-					nextPoint = new Point((short) (point.getX() + 1),
-							point.getY());
+					nextPoint = new Point((short) (point.getX() + 1), point.getY());
 				break;
 			case 1:
 				if (point.getY() + 1 < size)
-					nextPoint = new Point(point.getX(),
-							(short) (point.getY() + 1));
+					nextPoint = new Point(point.getX(),	(short) (point.getY() + 1));
 				break;
 			case 2:
 				if (point.getX() > 0)
-					nextPoint = new Point((short) (point.getX() - 1),
-							point.getY());
+					nextPoint = new Point((short) (point.getX() - 1), point.getY());
 				break;
 			case 3:
 				if (point.getY() > 0)
-					nextPoint = new Point(point.getX(),
-							(short) (point.getY() - 1));
+					nextPoint = new Point(point.getX(),	(short) (point.getY() - 1));
 				break;
 			}
 			direction++;

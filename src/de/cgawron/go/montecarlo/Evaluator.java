@@ -15,9 +15,15 @@
  */
 package de.cgawron.go.montecarlo;
 
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.logging.Logger;
+
 import de.cgawron.go.Goban;
 import de.cgawron.go.Goban.BoardType;
 import de.cgawron.go.Point;
+import de.cgawron.go.SimpleGoban;
 
 /** 
  * Evaluate a Node using Monte Carlo simulation
@@ -25,6 +31,8 @@ import de.cgawron.go.Point;
  */
 public class Evaluator
 {
+	private static Logger logger = Logger.getLogger(Evaluator.class.getName());
+
 	final static int NUM_SIMULATIONS = 10;
 
 	/** Evaluates the score of a Goban */
@@ -45,6 +53,7 @@ public class Evaluator
 		
 		while (true) {
 			Point p = selectRandomMove(goban, currentColor);
+			logger.info("evaluate: " + p);
 
 			if (p == null) {
 				if (lastSidePassed)
@@ -54,6 +63,7 @@ public class Evaluator
 			}
 			else {
 				goban.move(p, currentColor);
+				lastSidePassed = false;
 			}
 			currentColor = currentColor.opposite();
 		} 
@@ -69,10 +79,54 @@ public class Evaluator
 	 */
 	public static Point selectRandomMove(Goban goban, Goban.BoardType movingColor)
 	{
-		// TODO
+		// FIXME
+		double totalSuitability = 0;
+		Map<Point, Double> map = new TreeMap<Point, Double>();
+		int size = goban.getBoardSize();
+		for (int i = 0; i < size; i++) {
+			for (int j = 0; j < size; j++) {
+				Point p = new Point(i, j);
+				double suitability = getSuitability(goban, p, movingColor);
+				if (suitability > 0) {
+					totalSuitability += suitability;
+					map.put(p, suitability);
+				}
+			}
+		}
+		
+		double random = Math.random();
+		Set<Map.Entry<Point, Double> > entries = map.entrySet();
+		logger.info("selectRandomMove: " + movingColor + " " + totalSuitability + " " + random);
+		for (Map.Entry<Point, Double> entry : entries) {
+			random -= entry.getValue() / totalSuitability;
+			if (random < 0) return entry.getKey();
+		}
 		return null;
 	}
 	
+	private static double getSuitability(Goban goban, Point p, BoardType movingColor) 
+	{
+		SimpleGoban sg = (SimpleGoban) goban;
+		
+		if (goban.getStone(p) != BoardType.EMPTY)
+			return 0;
+		else { 
+			if (sg.isCapture(p, movingColor))
+ 				return 2;
+			
+			sg.setStone(p, movingColor);
+			int liberties = sg.countLiberties(p);
+			sg.setStone(p, BoardType.EMPTY);
+			
+			if (liberties == 0) return 0;
+			
+			if (sg.isEye(p, movingColor)) 
+				return 0;
+			else
+				return 1;
+		}
+	}
+
 	/**
 	 * Calculate the chinese score of a Goban position.
 	 */

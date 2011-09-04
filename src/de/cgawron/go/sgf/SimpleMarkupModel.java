@@ -38,8 +38,7 @@ import java.util.logging.Logger;
 public class SimpleMarkupModel extends SimpleGoban implements MarkupModel,
 		PropertyChangeListener
 {
-	private static Logger logger = Logger.getLogger(SimpleMarkupModel.class
-			.getName());
+	private static Logger logger = Logger.getLogger(SimpleMarkupModel.class.getName());
 	protected MarkupModel.Markup[][] markup;
 	private Region region;
 	private SortedSet<Conflict> conflicts = new TreeSet<Conflict>();

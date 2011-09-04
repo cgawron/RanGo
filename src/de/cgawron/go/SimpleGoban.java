@@ -16,23 +16,21 @@
 
 package de.cgawron.go;
 
-import de.cgawron.go.Goban.BoardType;
-import de.cgawron.go.Point;
-import de.cgawron.go.MutablePoint;
-
-import java.io.Serializable;
 import java.util.Collection;
-import java.util.EventListener;
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.Vector;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import de.cgawron.go.Goban.BoardType;
 
 /**
  * A simple implementation of a GobanModel, using a two-dimensional array to
  * represent the board. 
  * @author Christian Gawron
  */
-public class SimpleGoban extends AbstractGoban implements Serializable
+public class SimpleGoban extends AbstractGoban
 {
 	protected int size = 0;
 	protected BoardType[][] boardRep;
@@ -47,8 +45,7 @@ public class SimpleGoban extends AbstractGoban implements Serializable
 
 	protected Collection<GobanListener> listeners = new java.util.ArrayList<GobanListener>();
 
-	private static Logger logger = Logger
-			.getLogger(SimpleGoban.class.getName());
+	private static Logger logger = Logger.getLogger(SimpleGoban.class.getName());
 
 	/** Create a SimpleGoban with default board size of 19x19. */
 	public SimpleGoban()
@@ -137,8 +134,10 @@ public class SimpleGoban extends AbstractGoban implements Serializable
 	 * @param p
 	 *            goban.Point
 	 */
-	public int countLiberties(Point p)
+	public int countLiberties(Point p, boolean incrementVisited)
 	{
+		if (incrementVisited) visited++;
+		
 		tmpBoard[p.getX()][p.getY()] = visited;
 		int liberties = (int) 0;
 
@@ -150,12 +149,17 @@ public class SimpleGoban extends AbstractGoban implements Serializable
 				if (getStone(q) == BoardType.EMPTY)
 					liberties++;
 				else if (getStone(q) == getStone(p))
-					liberties += countLiberties(q);
+					liberties += countLiberties(q, false);
 			}
 		}
 		return liberties;
 	}
 
+	public int countLiberties(Point p)
+	{
+		return countLiberties(p, true);
+	}
+	
 	/**
 	 * Insert the method's description here. Creation date: (03/25/00 16:07:59)
 	 * 
@@ -207,14 +211,14 @@ public class SimpleGoban extends AbstractGoban implements Serializable
 	}
 
 	/** move method comment. */
-	public void move(Point p, BoardType color)
+	public boolean move(Point p, BoardType color)
 	{
-		move(p.getX(), p.getY(), color);
+		return move(p.getX(), p.getY(), color);
 	}
 
-	public void move(Point p, BoardType color, int moveNo)
+	public boolean move(Point p, BoardType color, int moveNo)
 	{
-		move(p.getX(), p.getY(), color, moveNo);
+		return move(p.getX(), p.getY(), color, moveNo);
 	}
 
 	/**
@@ -355,42 +359,44 @@ public class SimpleGoban extends AbstractGoban implements Serializable
 	}
 
 	/** move method comment. */
-	public void move(int x, int y, BoardType color, int moveNo)
+	public boolean move(int x, int y, BoardType color, int moveNo)
 	{
-		move(x, y, color);
+		return move(x, y, color);
 	}
 
-	public void move(int x, int y, BoardType color)
+	public boolean move(int x, int y, BoardType color)
 	{
 		if (x < 0 || y < 0 || x >= getBoardSize() || y >= getBoardSize())
-			return;
+			return false;
 
-		int captured = 0;
 		BoardType enemy = color.opposite();
 		if (getStone(x, y) != BoardType.EMPTY)
-			return;
+			return false;
 
 		setStone(x, y, color);
 
 		Point p = new Point(x, y);
 		lastMove = p;
 		NeighborhoodEnumeration ne = new NeighborhoodEnumeration(this, p);
-		Vector removed = new Vector();
+		Vector<Point> removed = new Vector<Point>();
 		while (ne.hasMoreElements()) {
 			p = (Point) ne.nextElement();
 			visited++;
 			if (getStone(p) == enemy)
-				if (countLiberties(p) == 0)
-					captured += removeChain(p, removed);
+				if (countLiberties(p) == 0) {
+					removeChain(p, removed);
+				}
 		}
 		visited++;
 		p = new Point(x, y);
+		boolean legal = true;
 		if (countLiberties(p) == 0) {
 			removeChain(p, removed);
-			// throw new IllegalMove();
+			legal = false;
 		}
 		fireStonesRemoved(removed);
 		fireStoneAdded(x, y, color);
+		return legal;
 	}
 
 	public Point getLastMove()
@@ -422,7 +428,7 @@ public class SimpleGoban extends AbstractGoban implements Serializable
 			tmpBoard = new int[size][size];
 			_hash = new int[16];
 
-			int i, j;
+			int i;
 			for (i = 0; i < size; i++) {
 				java.util.Arrays.fill(boardRep[i], BoardType.EMPTY);
 				java.util.Arrays.fill(tmpBoard[i], 0);
@@ -463,7 +469,7 @@ public class SimpleGoban extends AbstractGoban implements Serializable
 	 * @param c
 	 *            goban.BoardType
 	 */
-	protected void setStone(Point p, BoardType c)
+	public void setStone(Point p, BoardType c)
 	{
 		setStone(p.getX(), p.getY(), c);
 	}
@@ -576,7 +582,6 @@ public class SimpleGoban extends AbstractGoban implements Serializable
 			while (it.hasNext()) {
 				Point p = (Point) it.next();
 				Point pt = s.transform(p, size);
-				BoardType stone = getStone(p);
 				if (goban.getStone(p) != s.transform(getStone(pt)))
 					return false;
 			}
@@ -647,7 +652,121 @@ public class SimpleGoban extends AbstractGoban implements Serializable
 
 	@Override
 	public int chineseScore() {
-		// TODO Auto-generated method stub
-		return 0;
+		if (logger.isLoggable(Level.INFO))
+			logger.info("chineseScore: \n" + this);
+		int score = 0;
+		visited++;
+		int i, j;
+		for (i = 0; i < size; i++) {
+			for (j = 0; j < size; j++) {
+				if (tmpBoard[i][j] == visited) {
+					continue;
+				}
+				else {
+					switch(boardRep[i][j]) {
+					case BLACK:
+						score++;
+						break;
+					case WHITE:
+						score--;
+						break;
+					case EMPTY:
+						score += scoreEmpty(new Point(i, j));
+						break;
+					}
+					tmpBoard[i][j] = visited; 
+				}
+			}
+		}
+		return score;
+	}
+	
+	public int scoreEmpty(Point p)
+	{
+		visited++;
+		int score=0;
+		boolean touchBlack = false;
+		boolean touchWhite = false;
+		Queue<Point> queue = new LinkedList<Point>();
+		queue.add(p);
+		
+		while (!queue.isEmpty()) {
+			p = queue.poll();
+			score++;
+			tmpBoard[p.x][p.y] = visited;
+			NeighborhoodEnumeration nb = new NeighborhoodEnumeration(this, p);
+			while (nb.hasMoreElements()) {
+				Point n = nb.nextElement();
+				if (tmpBoard[n.x][n.y] == visited) continue;
+				else {
+					switch(boardRep[n.x][n.y]) {
+					case BLACK:
+						touchBlack = true;
+						break;
+					case WHITE:
+						touchWhite = true;
+						break;
+					case EMPTY:
+						queue.add(n);
+						tmpBoard[n.x][n.y] = visited;
+						break;
+					}
+				}
+			}
+		}
+		if (touchBlack && touchWhite)
+			return 0;
+		else if (touchBlack)
+			return score;
+		else if (touchWhite)
+			return -score;
+		else throw new IllegalStateException("This should not happen: \n" + toString());
+	}
+
+	@Override
+	public boolean isValidMove(Point p, BoardType movingColor) 
+	{
+		if (getStone(p) != BoardType.EMPTY)
+			return false;
+		else { 
+			if (isCapture(p, movingColor))
+				return true;
+			
+			setStone(p, movingColor);
+			int liberties = countLiberties(p);
+			setStone(p, BoardType.EMPTY);
+			
+			return liberties > 0;
+		}
+	}
+
+	public boolean isCapture(Point p, BoardType movingColor)
+	{
+		if (getStone(p) != BoardType.EMPTY) return false;
+
+		BoardType enemy = movingColor.opposite();
+		setStone(p, movingColor);
+		NeighborhoodEnumeration ne = new NeighborhoodEnumeration(this, p);
+		while (ne.hasMoreElements()) {
+			Point q = (Point) ne.nextElement();
+			visited++;
+			if (getStone(q) == enemy)
+				if (countLiberties(q) == 0) {
+					setStone(p, BoardType.EMPTY);
+					return true;
+				}
+		}
+		setStone(p, BoardType.EMPTY);
+		return false;		
+	}
+
+	public boolean isEye(Point p, BoardType movingColor) {
+		NeighborhoodEnumeration ne = new NeighborhoodEnumeration(this, p);
+		while (ne.hasMoreElements()) {
+			p = (Point) ne.nextElement();
+			if (getStone(p) != movingColor) 
+				return false;	
+		}
+		return true;
 	}
 }

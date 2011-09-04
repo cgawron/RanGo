@@ -17,6 +17,8 @@ package de.cgawron.go;
 
 import java.beans.PropertyChangeListener;
 
+import de.cgawron.go.Goban.BoardType;
+
 /**
  * Represents the state (i.e. the position of all the stones on the board) of a
  * goban.
@@ -169,7 +171,7 @@ public interface Goban extends Cloneable
 	 * @param color
 	 *            of the move
 	 */
-	void move(Point p, BoardType color);
+	boolean move(Point p, BoardType color);
 
 	/**
 	 * Place a move by <code>color</code> at <code>p</code>
@@ -181,7 +183,7 @@ public interface Goban extends Cloneable
 	 * @param moveNo
 	 *            move number (@see MarkupModel.move())
 	 */
-	void move(Point p, BoardType color, int moveNo);
+	boolean move(Point p, BoardType color, int moveNo);
 
 	/**
 	 * Remove a {@link GobanListener} for the model.
@@ -219,7 +221,7 @@ public interface Goban extends Cloneable
 	 * @param color
 	 *            of the move
 	 */
-	void move(int x, int y, BoardType color);
+	boolean move(int x, int y, BoardType color);
 
 	/**
 	 * Get the last move or null if there was no move.
@@ -368,4 +370,6 @@ public interface Goban extends Cloneable
 	 * clone the Goban
 	 */
 	Goban clone() throws CloneNotSupportedException;
+
+	boolean isValidMove(Point p, BoardType movingColor);
 }
