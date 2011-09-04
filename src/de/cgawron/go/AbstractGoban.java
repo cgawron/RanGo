@@ -175,5 +175,5 @@ public abstract class AbstractGoban implements Goban
 	abstract int _hash(Symmetry s);
 
 	@Override
-	abstract public Goban clone() throws CloneNotSupportedException;
+	abstract public Goban clone();
 }

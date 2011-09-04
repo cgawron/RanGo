@@ -697,13 +697,7 @@ public class Node extends PropertyList implements MarkupModelListener,
 						} else {
 							goban = p.getGoban();
 							if (goban != null) {
-								try {
-									goban = goban.clone();
-								} catch (CloneNotSupportedException ex) {
-									throw new RuntimeException(
-											"goban should support clone() but doesn't",
-											ex);
-								}
+								goban = goban.clone();
 
 								if (n.isBeginOfVariation() || p.isDiagram()) {
 									if (goban instanceof MarkupModel) {
@@ -1285,11 +1279,7 @@ public class Node extends PropertyList implements MarkupModelListener,
 			if (parent == null)
 				model = gameTree.getGoban(getBoardSize());
 			else {
-				try {
-					model = parent.getGoban().clone();
-				} catch (CloneNotSupportedException ex) {
-					throw new RuntimeException("Implementation error", ex);
-				}
+				model = parent.getGoban().clone();
 			}
 
 		if (!model.getStone(p).equals(c)) {

@@ -22,6 +22,7 @@ import de.cgawron.go.Goban;
 import de.cgawron.go.Goban.BoardType;
 import de.cgawron.go.GobanEvent;
 import de.cgawron.go.GobanListener;
+import de.cgawron.go.NeighborhoodEnumeration;
 import de.cgawron.go.Point;
 import de.cgawron.go.SimpleGoban;
 
@@ -51,12 +52,6 @@ public class SimpleMarkupModel extends SimpleGoban implements MarkupModel,
 		super();
 	}
 
-	/** SimpleGoban constructor comment. */
-	public SimpleMarkupModel(short size)
-	{
-		super(size);
-	}
-
 	/**
 	 * Insert the method's description here. Creation date: (04/09/00 18:29:33)
 	 * 
@@ -69,19 +64,26 @@ public class SimpleMarkupModel extends SimpleGoban implements MarkupModel,
 		if (m instanceof MarkupModel) {
 			MarkupModel mm = (MarkupModel) m;
 			setRegion(mm.getRegion());
-			conflicts = (SortedSet<Conflict>) ((TreeSet<Conflict>) mm
-					.getConflicts()).clone();
+			conflicts = (SortedSet<Conflict>) ((TreeSet<Conflict>) mm.getConflicts()).clone();
 		}
 	}
 
-	public void propertyChange(PropertyChangeEvent event)
+	/** SimpleGoban constructor comment. */
+	public SimpleMarkupModel(short size)
 	{
-		logger.info("SimpleMarkupModel.propertyChange: " + event);
-		if (event.getSource() instanceof Region) {
-			firePropertyChange(null, null, null);
-			fireRegionChanged();
-			fireModelChanged();
-		}
+		super(size);
+	}
+
+	/** addGobanListener method comment. */
+	public void addGobanListener(GobanListener l)
+	{
+		listeners.add(l);
+	}
+
+	public Goban clone() 
+	{
+		Goban model = new SimpleMarkupModel(this);
+		return model;
 	}
 
 	/**
@@ -125,6 +127,99 @@ public class SimpleMarkupModel extends SimpleGoban implements MarkupModel,
 		fireModelChanged();
 	}
 
+	protected void fireRegionChanged()
+	{
+		if (logger.isLoggable(Level.FINE))
+			logger.fine("SimpleMarkupModel.fireRegionChanged");
+
+		GobanEvent e = new GobanEvent(this);
+		// Guaranteed to return a non-null array
+		for (GobanListener listener : listeners) {
+			// listener.regionChanged(e);
+		}
+	}
+
+	MarkupModel.Markup getConflictLabel(MarkupModel.Stone s)
+	{
+		Iterator<Conflict> it = conflicts.iterator();
+
+		short n = 0;
+		while (it.hasNext()) {
+			if (it.next().first instanceof ConflictMark)
+				n++;
+		}
+		return new MarkupModel.ConflictMark(s, (char) ('a' + n));
+	}
+
+	public SortedSet<Conflict> getConflicts()
+	{
+		if (logger.isLoggable(Level.FINE))
+			logger.fine("Conflicts: " + conflicts);
+		return conflicts;
+	}
+
+	/** getStone method comment. */
+	public MarkupModel.Markup getMarkup(Point p)
+	{
+		return markup[p.getX()][p.getY()];
+	}
+
+	/** getStone method comment. */
+	public MarkupModel.Markup getMarkup(short x, short y)
+	{
+		return markup[x][y];
+	}
+
+	public Region getRegion()
+	{
+		return region;
+	}
+
+	public String getToolTipText(Point p)
+	{
+		return (String) toolTipMap.get(p);
+	}
+
+	/** move method comment. */
+	public void move(short x, short y, BoardType color)
+	{
+		super.move(x, y, color);
+		setMarkup(x, y, new Move(color, moveNo++));
+	}
+
+	/** move method comment. */
+	public void move(short x, short y, BoardType color, int moveNo)
+	{
+		this.moveNo = moveNo;
+		super.move(x, y, color, moveNo);
+		setMarkup(x, y, new Move(color, moveNo++));
+	}
+
+	public void propertyChange(PropertyChangeEvent event)
+	{
+		logger.info("SimpleMarkupModel.propertyChange: " + event);
+		if (event.getSource() instanceof Region) {
+			firePropertyChange(null, null, null);
+			fireRegionChanged();
+			fireModelChanged();
+		}
+	}
+
+	/** putStone method comment. */
+	public void putStone(short x, short y, BoardType color)
+	{
+		if (logger.isLoggable(Level.FINE))
+			logger.fine("putStone: " + x + ", " + y + ", " + color);
+		super.putStone(x, y, color);
+		setMarkup(x, y, new Stone(color));
+	}
+
+	/** addGobanListener method comment. */
+	public void removeGobanListener(GobanListener l)
+	{
+		listeners.remove(l);
+	}
+
 	public void resetMarkup()
 	{
 		if (logger.isLoggable(Level.FINE))
@@ -146,25 +241,12 @@ public class SimpleMarkupModel extends SimpleGoban implements MarkupModel,
 		fireModelChanged();
 	}
 
-	/** getStone method comment. */
-	public MarkupModel.Markup getMarkup(Point p)
-	{
-		return markup[p.getX()][p.getY()];
-	}
-
-	/** getStone method comment. */
-	public MarkupModel.Markup getMarkup(short x, short y)
-	{
-		return markup[x][y];
-	}
-
 	/** setBoardSize method comment. */
 	@Override
 	public void setBoardSize(int s)
 	{
 		if (size != s) {
 			super.setBoardSize(s);
-			short i, j;
 			size = s;
 			markup = new MarkupModel.Markup[size][size];
 		}
@@ -219,54 +301,6 @@ public class SimpleMarkupModel extends SimpleGoban implements MarkupModel,
 		}
 	}
 
-	MarkupModel.Markup getConflictLabel(MarkupModel.Stone s)
-	{
-		Iterator<Conflict> it = conflicts.iterator();
-
-		short n = 0;
-		while (it.hasNext()) {
-			if (it.next().first instanceof ConflictMark)
-				n++;
-		}
-		return new MarkupModel.ConflictMark(s, (char) ('a' + n));
-	}
-
-	/** putStone method comment. */
-	public void putStone(short x, short y, BoardType color)
-	{
-		if (logger.isLoggable(Level.FINE))
-			logger.fine("putStone: " + x + ", " + y + ", " + color);
-		super.putStone(x, y, color);
-		setMarkup(x, y, new Stone(color));
-	}
-
-	protected void setStone(short x, short y, BoardType color)
-	{
-		if (logger.isLoggable(Level.FINE))
-			logger.fine("setStone: " + x + ", " + y + ", " + color);
-		super.setStone(x, y, color);
-	}
-
-	/** move method comment. */
-	public void move(short x, short y, BoardType color)
-	{
-		super.move(x, y, color);
-		setMarkup(x, y, new Move(color, moveNo++));
-	}
-
-	/** move method comment. */
-	public void move(short x, short y, BoardType color, int moveNo)
-	{
-		this.moveNo = moveNo;
-		super.move(x, y, color, moveNo);
-		setMarkup(x, y, new Move(color, moveNo++));
-	}
-
-	public Region getRegion()
-	{
-		return region;
-	}
-
 	public void setRegion(Region newRegion)
 	{
 		Region oldRegion = region;
@@ -284,35 +318,16 @@ public class SimpleMarkupModel extends SimpleGoban implements MarkupModel,
 			newRegion.addPropertyChangeListener(this);
 	}
 
-	public SortedSet<Conflict> getConflicts()
+	protected void setStone(short x, short y, BoardType color)
 	{
 		if (logger.isLoggable(Level.FINE))
-			logger.fine("Conflicts: " + conflicts);
-		return conflicts;
+			logger.fine("setStone: " + x + ", " + y + ", " + color);
+		super.setStone(x, y, color);
 	}
 
-	/** addGobanListener method comment. */
-	public void addGobanListener(GobanListener l)
+	public void setToolTipText(Point p, String s)
 	{
-		listeners.add(l);
-	}
-
-	/** addGobanListener method comment. */
-	public void removeGobanListener(GobanListener l)
-	{
-		listeners.remove(l);
-	}
-
-	protected void fireRegionChanged()
-	{
-		if (logger.isLoggable(Level.FINE))
-			logger.fine("SimpleMarkupModel.fireRegionChanged");
-
-		GobanEvent e = new GobanEvent(this);
-		// Guaranteed to return a non-null array
-		for (GobanListener listener : listeners) {
-			// listener.regionChanged(e);
-		}
+		toolTipMap.put(p, s);
 	}
 
 	public String toString()
@@ -344,22 +359,6 @@ public class SimpleMarkupModel extends SimpleGoban implements MarkupModel,
 			s.append('\n');
 		}
 		return s.toString();
-	}
-
-	public String getToolTipText(Point p)
-	{
-		return (String) toolTipMap.get(p);
-	}
-
-	public void setToolTipText(Point p, String s)
-	{
-		toolTipMap.put(p, s);
-	}
-
-	public Goban clone() throws CloneNotSupportedException
-	{
-		Goban model = new SimpleMarkupModel(this);
-		return model;
 	}
 
 }

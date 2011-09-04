@@ -369,7 +369,6 @@ public interface Goban extends Cloneable
 	/**
 	 * clone the Goban
 	 */
-	Goban clone() throws CloneNotSupportedException;
+	Goban clone();
 
-	boolean isValidMove(Point p, BoardType movingColor);
 }

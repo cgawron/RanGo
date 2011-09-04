@@ -690,11 +690,8 @@ public class GameTree implements TreeModel, PropertyChangeListener,
 		logger.info("appending node " + newNode + " at " + currentNode);
 		int newIndex = currentNode.getChildCount();
 		currentNode.add(newNode);
-		try {
-			newNode.setGoban(currentNode.getGoban().clone());
-		} catch (CloneNotSupportedException ex) {
-			throw new RuntimeException(ex);
-		}
+		newNode.setGoban(currentNode.getGoban().clone());
+
 		if (newNode.getGoban() == currentNode.getGoban())
 			throw new NullPointerException();
 		setModified(true);

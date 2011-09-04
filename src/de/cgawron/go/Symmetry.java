@@ -19,6 +19,8 @@ import de.cgawron.go.MutablePoint;
 
 public class Symmetry
 {
+	public static final Symmetry IDENTITY = new Symmetry(0);
+
 	/**
 	 * The symmetry is stored as follows: bit 0: exchange x and y bit 1:
 	 * reflection (x-axis) bit 2: reflection (y-axis) bit 3: color exchange
