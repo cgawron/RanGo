@@ -1,16 +1,20 @@
 package de.cgawron.go.montecarlo;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.Vector;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import de.cgawron.go.Goban;
 import de.cgawron.go.Goban.BoardType;
+import de.cgawron.go.Neighborhood;
 import de.cgawron.go.NeighborhoodEnumeration;
 import de.cgawron.go.Point;
 import de.cgawron.go.SimpleGoban;
@@ -18,26 +22,60 @@ import de.cgawron.go.SimpleGoban;
 public class AnalysisGoban extends SimpleGoban 
 {
 	public static Logger logger = Logger.getLogger(AnalysisGoban.class.getName());
+	
+	Map<Point, Chain> chainMap;
 
 	public AnalysisGoban() {
 		super();
+		init();
 	}
 
 	public AnalysisGoban(Goban m) {
 		super(m);
+		// Do not call init() here!
 	}
 
 	public AnalysisGoban(int size) {
 		super(size);
+		init();
 	}
 
 	public AnalysisGoban clone() 
 	{
 		AnalysisGoban goban = new AnalysisGoban();
+		init();
 		goban.copy(this);
 		return goban;
 	}
 	
+	public void copy(Goban goban)
+	{
+		super.copy(goban);
+		initChainMap(goban);
+	}
+	
+	private void init()
+	{
+		chainMap = new TreeMap<Point, Chain>();	
+	}
+	
+	private void initChainMap(Goban goban) 
+	{
+		visited++;
+		for (int i=0; i<size; i++) {
+			for (int j=0; j<size; j++) {
+				if (boardRep[i][j] != BoardType.EMPTY && tmpBoard[i][j] != visited) {
+					addChain(i, j);
+				}
+			}
+		}
+	}
+
+	private void addChain(int i, int j) {
+		// TODO Auto-generated method stub
+		
+	}
+
 	public Vector<Point> getRemoved() 
 	{
 		return removed;
@@ -51,9 +89,7 @@ public class AnalysisGoban extends SimpleGoban
 	
 		BoardType enemy = movingColor.opposite();
 		setStone(p, movingColor);
-		NeighborhoodEnumeration ne = new NeighborhoodEnumeration(this, p);
-		while (ne.hasMoreElements()) {
-			Point q = (Point) ne.nextElement();
+		for (Point q : new Neighborhood(this, p)) {
 			visited++;
 			if (getStone(q) == enemy)
 				if (countLiberties(q) == 0) {
@@ -67,12 +103,12 @@ public class AnalysisGoban extends SimpleGoban
 
 	public boolean isOneSpaceEye(Point p) 
 	{
-		NeighborhoodEnumeration ne = new NeighborhoodEnumeration(this, p);
-		p = (Point) ne.nextElement();
+		Iterator<Point> n = (new Neighborhood(this, p)).iterator();
+		p = n.next();
 		BoardType color = getStone(p);
 		if (color == BoardType.EMPTY) return false;
-		while (ne.hasMoreElements()) {
-			p = (Point) ne.nextElement();
+		while (n.hasNext()) {
+			p = n.next();
 			if (getStone(p) != color) 
 				return false;	
 		}
@@ -97,6 +133,19 @@ public class AnalysisGoban extends SimpleGoban
 			
 			return liberties > 0;
 		}
+	}
+
+	public boolean move(int x, int y, BoardType color)
+	{
+		boolean result = super.move(x, y, color);
+		updateChains(x, y, color);
+		return result;
+	}
+	
+	private void updateChains(int x, int y, BoardType color) 
+	{
+		// FIXME - this is not efficient
+		initChainMap(this);
 	}
 
 	public int getAtariCount(BoardType movingColor) 
@@ -127,9 +176,7 @@ public class AnalysisGoban extends SimpleGoban
 			area.add(p);
 			score++;
 			tmpBoard[p.getX()][p.getY()] = visited;
-			NeighborhoodEnumeration nb = new NeighborhoodEnumeration(this, p);
-			while (nb.hasMoreElements()) {
-				Point n = nb.nextElement();
+			for (Point n : new Neighborhood(this, p)) {
 				if (tmpBoard[n.getX()][n.getY()] == visited) continue;
 				else {
 					switch(boardRep[n.getX()][n.getY()]) {

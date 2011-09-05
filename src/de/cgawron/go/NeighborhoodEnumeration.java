@@ -23,6 +23,11 @@ package de.cgawron.go;
 import de.cgawron.go.Point;
 import java.util.Enumeration;
 
+/**
+ * 
+ * @author cgawron
+ * @deprecated
+ */
 public class NeighborhoodEnumeration implements Enumeration<Point>
 {
 	protected int direction;
