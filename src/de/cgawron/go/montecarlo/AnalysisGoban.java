@@ -1,7 +1,12 @@
 package de.cgawron.go.montecarlo;
 
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Queue;
 import java.util.Set;
 import java.util.Vector;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import de.cgawron.go.Goban;
@@ -106,6 +111,96 @@ public class AnalysisGoban extends SimpleGoban
 			}
 		}
 		return count;
+	}
+
+	public int scoreEmpty(Point p, double[][] territory) 
+	{
+		int score=0;
+		boolean touchBlack = false;
+		boolean touchWhite = false;
+		Queue<Point> queue = new LinkedList<Point>();
+		List<Point> area = new ArrayList<Point>();
+		queue.add(p);
+		
+		while (!queue.isEmpty()) {
+			p = queue.poll();
+			area.add(p);
+			score++;
+			tmpBoard[p.getX()][p.getY()] = visited;
+			NeighborhoodEnumeration nb = new NeighborhoodEnumeration(this, p);
+			while (nb.hasMoreElements()) {
+				Point n = nb.nextElement();
+				if (tmpBoard[n.getX()][n.getY()] == visited) continue;
+				else {
+					switch(boardRep[n.getX()][n.getY()]) {
+					case BLACK:
+						touchBlack = true;
+						break;
+					case WHITE:
+						touchWhite = true;
+						break;
+					case EMPTY:
+						queue.add(n);
+						tmpBoard[n.getX()][n.getY()] = visited;
+						break;
+					}
+				}
+			}
+		}
+		//logger.info("scoreEmpty " + p + ": " + score);
+		if (touchBlack && touchWhite)
+			return 0;
+		else if (touchBlack) {
+			for (Point q : area) {
+				territory[q.getX()][q.getY()] += 1.0;
+			}
+			return score;
+		}
+		else if (touchWhite) {
+			for (Point q : area) {
+				territory[q.getX()][q.getY()] -= 1.0;
+			}
+			return -score;
+		}
+		else throw new IllegalStateException("This should not happen: \n" + toString());
+	}
+
+	/**
+	 * Calculate the chinese score of the position.
+	 * This method assumes that all dead stones are already removed, i.e. all 
+	 * stones on the board are considered alive, and territories containing stones of both colors are neutral.
+	 * @return The chinese score of the position.
+	 */
+	public int chineseScore(double[][] territory) 
+	{
+		if (logger.isLoggable(Level.INFO))
+			logger.info("chineseScore: \n" + this);
+		int score = 0;
+		visited++;
+		int i, j;
+		for (i = 0; i < size; i++) {
+			for (j = 0; j < size; j++) {
+				if (tmpBoard[i][j] == visited) {
+					continue;
+				}
+				else {
+					switch(boardRep[i][j]) {
+					case BLACK:
+						score++;
+						territory[i][j] += 1;
+						break;
+					case WHITE:
+						score--;
+						territory[i][j] -= 1;
+						break;
+					case EMPTY:
+						score += scoreEmpty(new Point(i, j), territory);
+						break;
+					}
+				}
+			}
+		}
+		return score;
 	}
 
 }

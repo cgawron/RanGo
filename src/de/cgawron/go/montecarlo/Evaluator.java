@@ -66,38 +66,7 @@ public class Evaluator
 			this.movingColor = movingColor;
 			this.moveNo = 0;
 		}
-		
-/*		
-		private static double getSuitability(Set<Goban> history, Goban goban, Point p, BoardType movingColor) 
-		{
-			SimpleGoban sg = (SimpleGoban) goban;
 			
-			if (goban.getStone(p) != BoardType.EMPTY)
-				return 0;
-			else {
-				int capture = sg.isCapture(p, movingColor);
-				if (capture > 0) {
-					if (!sg.isIllegalKoCapture(history, p, movingColor)) 
-						return capture;
-					else 
-						return 0;
-				}
-				
-				sg.setStone(p, movingColor);
-				int liberties = sg.countLiberties(p);
-				sg.setStone(p, BoardType.EMPTY);
-				
-				if (liberties == 0) return 0;
-				
-				if (sg.isEye(p, movingColor)) 
-					return 0;
-				else {
-					return 1;
-				}
-			}
-		}
-*/
-		
 		private AnalysisNode createChild() 
 		{
 			AnalysisNode child = new AnalysisNode(this);
@@ -208,19 +177,19 @@ public class Evaluator
 
 	private static Logger logger = Logger.getLogger(Evaluator.class.getName());
 
-	final static int NUM_SIMULATIONS = 100;
+	final static int NUM_SIMULATIONS = 1000;
 
-	public static int chineseScore(AnalysisNode node, Goban.BoardType movingColor)
+	public static int chineseScore(AnalysisNode node, Goban.BoardType movingColor, double[][] territory)
 	{
-		return chineseScore(node.goban, movingColor);
+		return chineseScore(node.goban, movingColor, territory);
 	}
 	
 	/**
 	 * Calculate the chinese score of a Goban position.
 	 */
-	public static int chineseScore(Goban goban, Goban.BoardType movingColor)
+	public static int chineseScore(AnalysisGoban goban, Goban.BoardType movingColor, double[][] territory)
 	{
-		int score = goban.chineseScore();
+		int score = goban.chineseScore(territory);
 		
 		if (movingColor == BoardType.WHITE) 
 			return -score;
@@ -231,28 +200,39 @@ public class Evaluator
 	/** Evaluates the score of a Goban */
 	public static double evaluate(Goban goban, Goban.BoardType movingColor)
 	{
+		int boardSize = goban.getBoardSize();
 		double score = 0;
+		double territory[][] = new double[boardSize][boardSize];
 		for (int i=0; i<NUM_SIMULATIONS; i++) {
-			score += evaluateRandomSequence(goban, movingColor);
+			score += evaluateRandomSequence(goban, movingColor, territory);
 		}
+
+		StringBuffer sb = new StringBuffer();
+		for (int i=0; i<boardSize; i++) {
+			sb.append("\n");
+			for (int j=0; j<boardSize; j++) {
+				sb.append(String.format("%4.1f ", territory[i][j] / NUM_SIMULATIONS));
+			}
+		}
+		logger.info("evaluate: score=" + score / NUM_SIMULATIONS + "\n" + goban + "\n" + sb.toString());
 		
 		return score / NUM_SIMULATIONS;
 	}
 	
-	public static double evaluateRandomSequence(Goban goban, Goban.BoardType movingColor)
+	public static double evaluateRandomSequence(Goban goban, Goban.BoardType movingColor, double[][] territory)
 	{
 		AnalysisNode root = new AnalysisNode(goban, movingColor);
 		AnalysisNode currentNode = root; 
 		
 		while (true) {
 			currentNode = selectRandomMove(currentNode);
-			logger.info("evaluate: " + currentNode);
+			// logger.info("evaluate: " + currentNode);
 
 			if (currentNode.isPass() && currentNode.parent.isPass()) {
 				break;
 			}
 		} 
-		int score = chineseScore(currentNode, movingColor);
+		int score = chineseScore(currentNode, movingColor, territory);
 		logger.info("score: " + score + "\n" + currentNode);
 		return score;
 	}

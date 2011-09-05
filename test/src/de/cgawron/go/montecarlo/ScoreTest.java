@@ -29,7 +29,7 @@ public class ScoreTest {
             return Arrays.asList(new Object[][] { { "simpleScore1.sgf", 9.0 }, { "simpleScore2.sgf", 5.0 } });
     }
     
-    private Goban goban;
+    private AnalysisGoban goban;
     private double expectedScore;
     private File baseDir = new File("test/sgf");
     
@@ -37,7 +37,7 @@ public class ScoreTest {
     	this.expectedScore = expectedScore;
     	File inputFile = new File(baseDir, inputSGF);
     	GameTree gameTree = new GameTree(inputFile);
-    	goban = gameTree.getLeafs().get(0).getGoban();
+    	goban = new AnalysisGoban(gameTree.getLeafs().get(0).getGoban());
     }
     
 	/**
@@ -45,7 +45,9 @@ public class ScoreTest {
 	 */
 	@Test
 	public void testChineseScore() {
-		double score = Evaluator.chineseScore(goban, BoardType.BLACK);
+		int size = goban.getBoardSize();
+		double[][] territory = new double[size][size]; 
+		double score = Evaluator.chineseScore(goban, BoardType.BLACK, territory);
 		assertEquals("Testing expected score", expectedScore, score, 0.2);
 	}
 

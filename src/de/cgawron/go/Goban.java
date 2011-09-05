@@ -309,13 +309,6 @@ public interface Goban extends Cloneable
 			PropertyChangeListener listener);
 
 	
-	/**
-	 * Calculate the chinese score of the position.
-	 * This method assumes that all dead stones are already removed, i.e. all 
-	 * stones on the board are considered alive, and territories containing stones of both colors are neutral.
-	 * @return The chinese score of the position.
-	 */
-	int chineseScore();
 	
 	/**
 	 * Calculate the Zobrist hash of the Goban. The Zobrist hash is a hash

@@ -17,8 +17,6 @@
 package de.cgawron.go;
 
 import java.util.Collection;
-import java.util.LinkedList;
-import java.util.Queue;
 import java.util.Vector;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -169,23 +167,6 @@ public class SimpleGoban extends AbstractGoban
 		fireModelChanged();
 	}
 
-	public int countLiberties(Point p)
-	{
-		return countLiberties(p, true);
-	}
-
-	/**
-	 * Insert the method's description here. Creation date: (03/26/00 17:12:54)
-	 * 
-	 * @return int
-	 * @param p
-	 *            goban.Point
-	 */
-	public int countLiberties(Point p, boolean incrementVisited)
-	{
-		return countLiberties(p.getX(), p.getY(), false);
-	}
-	
 	public int countLiberties(int x, int y, boolean incrementVisited)
 	{
 		if (incrementVisited) visited++;
@@ -205,6 +186,23 @@ public class SimpleGoban extends AbstractGoban
 			}
 		}
 		return liberties;
+	}
+
+	public int countLiberties(Point p)
+	{
+		return countLiberties(p, true);
+	}
+	
+	/**
+	 * Insert the method's description here. Creation date: (03/26/00 17:12:54)
+	 * 
+	 * @return int
+	 * @param p
+	 *            goban.Point
+	 */
+	public int countLiberties(Point p, boolean incrementVisited)
+	{
+		return countLiberties(p.getX(), p.getY(), false);
 	}
 
 	public boolean equals(Object o)
@@ -478,48 +476,6 @@ public class SimpleGoban extends AbstractGoban
 		listeners.remove(l);
 	}
 
-	public int scoreEmpty(Point p)
-	{
-		int score=0;
-		boolean touchBlack = false;
-		boolean touchWhite = false;
-		Queue<Point> queue = new LinkedList<Point>();
-		queue.add(p);
-		
-		while (!queue.isEmpty()) {
-			p = queue.poll();
-			score++;
-			tmpBoard[p.x][p.y] = visited;
-			NeighborhoodEnumeration nb = new NeighborhoodEnumeration(this, p);
-			while (nb.hasMoreElements()) {
-				Point n = nb.nextElement();
-				if (tmpBoard[n.x][n.y] == visited) continue;
-				else {
-					switch(boardRep[n.x][n.y]) {
-					case BLACK:
-						touchBlack = true;
-						break;
-					case WHITE:
-						touchWhite = true;
-						break;
-					case EMPTY:
-						queue.add(n);
-						tmpBoard[n.x][n.y] = visited;
-						break;
-					}
-				}
-			}
-		}
-		//logger.info("scoreEmpty " + p + ": " + score);
-		if (touchBlack && touchWhite)
-			return 0;
-		else if (touchBlack)
-			return score;
-		else if (touchWhite)
-			return -score;
-		else throw new IllegalStateException("This should not happen: \n" + toString());
-	}
-
 	/**
 	 * Insert the method's description here. Creation date: (04/18/00 23:51:16)
 	 * 
@@ -650,11 +606,11 @@ public class SimpleGoban extends AbstractGoban
 			for (j = 0; j < size; j++) {
 				p = boardRep[i][j];
 				if (p == BoardType.WHITE)
-					s.append('O');
+					s.append("O ");
 				else if (p == BoardType.BLACK)
-					s.append('X');
+					s.append("X ");
 				else
-					s.append('.');
+					s.append(". ");
 			}
 			s.append('\n');
 		}
@@ -693,35 +649,5 @@ public class SimpleGoban extends AbstractGoban
 		}
 
 		return h;
-	}
-
-	@Override
-	public int chineseScore() {
-		if (logger.isLoggable(Level.INFO))
-			logger.info("chineseScore: \n" + this);
-		int score = 0;
-		visited++;
-		int i, j;
-		for (i = 0; i < size; i++) {
-			for (j = 0; j < size; j++) {
-				if (tmpBoard[i][j] == visited) {
-					continue;
-				}
-				else {
-					switch(boardRep[i][j]) {
-					case BLACK:
-						score++;
-						break;
-					case WHITE:
-						score--;
-						break;
-					case EMPTY:
-						score += scoreEmpty(new Point(i, j));
-						break;
-					}
-				}
-			}
-		}
-		return score;
 	}
 }
