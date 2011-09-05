@@ -43,6 +43,7 @@ public class Evaluator
 		AnalysisNode parent;
 		double suitability;
 		Vector<Integer> hashCodes;
+		Map<Point, Miai> miaiMap;
 
 		int blackAtari = -1;
 		int whiteAtari = -1;
@@ -54,6 +55,7 @@ public class Evaluator
 			this.boardSize = analysisNode.boardSize;
 			this.goban = analysisNode.goban.clone();
 			this.moveNo = analysisNode.moveNo;
+			this.miaiMap = analysisNode.miaiMap;
 		}
 		
 		public AnalysisNode(Goban goban, BoardType movingColor) 
@@ -61,12 +63,19 @@ public class Evaluator
 			this.hashCodes = new Vector<Integer>(100, 100);
 			this.hashCodes.setSize(1);
 			this.hashCodes.set(0, goban.hashCode());
+			this.miaiMap = new TreeMap<Point, Miai>();
 			this.goban = new AnalysisGoban(goban);
 			this.boardSize = goban.getBoardSize();
 			this.movingColor = movingColor;
 			this.moveNo = 0;
 		}
 			
+		public void addMiai(Miai miai)
+		{
+			miaiMap.put(miai.p1, miai);
+			miaiMap.put(miai.p2, miai);
+		}
+		
 		private AnalysisNode createChild() 
 		{
 			AnalysisNode child = new AnalysisNode(this);
@@ -87,6 +96,8 @@ public class Evaluator
 		
 		private double calculateSuitability() 
 		{
+			double suitability = 1;
+			
 			// Don't play Suicide
 			if (goban.getStone(move) == BoardType.EMPTY) return 0;
 			
@@ -101,26 +112,31 @@ public class Evaluator
 			Vector<Point> removed = goban.getRemoved();
 			if (removed.size() > 0) {
 				//logger.info("Capturing: " + move + " captures " + removed.size());
-				return 2 * removed.size();
+				suitability += 2 * removed.size();
 			}
-			
-			// don't fill an eye
-			if (parent.goban.isOneSpaceEye(move)) return 0;
 						
 			// Saving stones is good
 			int saved = getSavedStones();
 			if (saved > 0) {
 				//logger.info("Saving: " + move + " saves " + saved);
-				return saved;
+				suitability += 2*saved;
+			}
+
+			Miai miai = null;
+			if (parent.move != null) miai = miaiMap.get(parent.move);
+			if (miai != null && miai.other(parent.move).equals(move)) {
+				logger.info("miai found!!" + miai);
+				suitability += miai.value;
 			}
 			
-			
+			// don't fill an eye
+			if (parent.goban.isOneSpaceEye(move) && saved <= 0) return 0;
 			
 			// Self-Atari is discouraged
 			if (saved < 0) 
-				return -1.0 / saved;
+				suitability *= -1.0 / saved;
 			
-			return 1;
+			return suitability;
 		}
 
 		private int getSavedStones() 
@@ -177,7 +193,9 @@ public class Evaluator
 
 	private static Logger logger = Logger.getLogger(Evaluator.class.getName());
 
-	final static int NUM_SIMULATIONS = 1000;
+	int numNodes = 0;
+
+	final static int NUM_SIMULATIONS = 500;
 
 	public static int chineseScore(AnalysisNode node, Goban.BoardType movingColor, double[][] territory)
 	{
@@ -202,9 +220,12 @@ public class Evaluator
 	{
 		int boardSize = goban.getBoardSize();
 		double score = 0;
+		double score2 = 0;
 		double territory[][] = new double[boardSize][boardSize];
 		for (int i=0; i<NUM_SIMULATIONS; i++) {
-			score += evaluateRandomSequence(goban, movingColor, territory);
+			double value = evaluateRandomSequence(goban, movingColor, territory); 
+			score += value;
+			score2 += value*value;
 		}
 
 		StringBuffer sb = new StringBuffer();
@@ -214,14 +235,20 @@ public class Evaluator
 				sb.append(String.format("%4.1f ", territory[i][j] / NUM_SIMULATIONS));
 			}
 		}
-		logger.info("evaluate: score=" + score / NUM_SIMULATIONS + "\n" + goban + "\n" + sb.toString());
 		
-		return score / NUM_SIMULATIONS;
+		score2 = Math.sqrt((score2 - score*score/NUM_SIMULATIONS) / (NUM_SIMULATIONS - 1));
+		score /= NUM_SIMULATIONS;
+		
+		logger.info("evaluate: score=" + score + " +- " + score2 + "\n" + goban + "\n" + sb.toString());
+		
+		return score;
 	}
 	
 	public static double evaluateRandomSequence(Goban goban, Goban.BoardType movingColor, double[][] territory)
 	{
 		AnalysisNode root = new AnalysisNode(goban, movingColor);
+		// FIXME: Hack to test Miai
+		root.addMiai(new Miai(new Point(7, 6), new Point(7, 7), 30));
 		AnalysisNode currentNode = root; 
 		
 		while (true) {
@@ -233,7 +260,7 @@ public class Evaluator
 			}
 		} 
 		int score = chineseScore(currentNode, movingColor, territory);
-		logger.info("score: " + score + "\n" + currentNode);
+		// logger.info("score: " + score + "\n" + currentNode);
 		return score;
 	}
 	
@@ -256,6 +283,7 @@ public class Evaluator
 				if (parent.goban.getStone(i, j) != BoardType.EMPTY) continue;
 				Point p = new Point(i, j);
 				AnalysisNode node = parent.createChild(p);
+				// numNodes++;
 				if (node.suitability > 0) {
 					totalSuitability += node.suitability;
 					map.put(node, node.suitability);

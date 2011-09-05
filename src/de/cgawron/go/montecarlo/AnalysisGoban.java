@@ -173,8 +173,10 @@ public class AnalysisGoban extends SimpleGoban
 	 */
 	public int chineseScore(double[][] territory) 
 	{
+		/*
 		if (logger.isLoggable(Level.INFO))
 			logger.info("chineseScore: \n" + this);
+	    */
 		int score = 0;
 		visited++;
 		int i, j;
