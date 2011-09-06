@@ -2,6 +2,15 @@ package de.cgawron.go.montecarlo;
 
 import de.cgawron.go.Point;
 
+/**
+ * This class represents the concept of miai moves in the game of Go: If one player plays one of the miai moves, the 
+ * opponent should usually answer with a certain other move and vice versa.
+ * 
+ *  Neglecting to answer (to play tenuki) usually loses points, represented by the value of the miai.
+ *  
+ * @author Christian Gawron
+ *
+ */
 public class Miai
 {
 	public Point p1;

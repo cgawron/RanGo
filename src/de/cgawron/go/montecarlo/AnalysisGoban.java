@@ -7,15 +7,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
-import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.Vector;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import de.cgawron.go.Goban;
-import de.cgawron.go.Goban.BoardType;
+import de.cgawron.go.GobanMap;
 import de.cgawron.go.Neighborhood;
-import de.cgawron.go.NeighborhoodEnumeration;
 import de.cgawron.go.Point;
 import de.cgawron.go.SimpleGoban;
 
@@ -24,6 +22,7 @@ public class AnalysisGoban extends SimpleGoban
 	public static Logger logger = Logger.getLogger(AnalysisGoban.class.getName());
 	
 	Map<Point, Chain> chainMap;
+	Map<Point, Set<Chain>> libertyMap;
 
 	public AnalysisGoban() {
 		super();
@@ -40,6 +39,71 @@ public class AnalysisGoban extends SimpleGoban
 		init();
 	}
 
+	private void addChain(Point q) 
+	{
+		BoardType color = getStone(q);
+		Chain chain = new Chain(color);
+		setVisited(q, visited);
+		chainMap.put(q, chain);
+		
+		for (Point p : new Neighborhood(this, q)) {
+			if (getStone(p) == color) {
+				if (!isVisited(p, visited)) {
+					chain.add(p);	
+					setVisited(p, visited);
+				}
+			}
+			else if (getStone(p) == BoardType.EMPTY) {
+				if (!isVisited(p, chain.id)) {
+					chain.addLiberty(p);
+					if (!libertyMap.containsKey(p)) libertyMap.put(p, new TreeSet<Chain>());
+					libertyMap.get(p).add(chain);
+					setVisited(p, chain.id);
+				}
+			}
+		}
+	}
+	
+	/**
+	 * Calculate the chinese score of the position.
+	 * This method assumes that all dead stones are already removed, i.e. all 
+	 * stones on the board are considered alive, and territories containing stones of both colors are neutral.
+	 * @return The chinese score of the position.
+	 */
+	public int chineseScore(double[][] territory) 
+	{
+		/*
+		if (logger.isLoggable(Level.INFO))
+			logger.info("chineseScore: \n" + this);
+	    */
+		int score = 0;
+		visited++;
+		int i, j;
+		for (i = 0; i < size; i++) {
+			for (j = 0; j < size; j++) {
+				if (tmpBoard[i][j] == visited) {
+					continue;
+				}
+				else {
+					switch(boardRep[i][j]) {
+					case BLACK:
+						score++;
+						territory[i][j] += 1;
+						break;
+					case WHITE:
+						score--;
+						territory[i][j] -= 1;
+						break;
+					case EMPTY:
+						score += scoreEmpty(new Point(i, j), territory);
+						break;
+					}
+				}
+			}
+		}
+		return score;
+	}
+	
 	public AnalysisGoban clone() 
 	{
 		AnalysisGoban goban = new AnalysisGoban();
@@ -53,34 +117,46 @@ public class AnalysisGoban extends SimpleGoban
 		super.copy(goban);
 		initChainMap(goban);
 	}
-	
-	private void init()
+
+	public int getAtariCount(BoardType movingColor) 
 	{
-		chainMap = new TreeMap<Point, Chain>();	
-	}
-	
-	private void initChainMap(Goban goban) 
-	{
-		visited++;
+		int count = 0;
+		//visited++;
 		for (int i=0; i<size; i++) {
 			for (int j=0; j<size; j++) {
-				if (boardRep[i][j] != BoardType.EMPTY && tmpBoard[i][j] != visited) {
-					addChain(i, j);
+				if (boardRep[i][j] == movingColor && tmpBoard[i][j] != visited) {
+					count += countLiberties(i, j, false);
 				}
 			}
 		}
-	}
-
-	private void addChain(int i, int j) {
-		// TODO Auto-generated method stub
-		
+		return count;
 	}
 
 	public Vector<Point> getRemoved() 
 	{
 		return removed;
 	}
-	
+
+	private void init()
+	{
+	}
+
+	private void initChainMap(Goban goban) 
+	{
+		if (chainMap == null) {
+			chainMap = new GobanMap<Chain>(getBoardSize());
+			libertyMap = new GobanMap<Set<Chain>>(getBoardSize());
+		}
+		visited++;
+		for (int i=0; i<size; i++) {
+			for (int j=0; j<size; j++) {
+				if (boardRep[i][j] != BoardType.EMPTY && tmpBoard[i][j] != visited) {
+					addChain(new Point(i, j));
+				}
+			}
+		}
+	}
+
 	public boolean isCapture(Point p, BoardType movingColor) 
 	{
 		
@@ -100,6 +176,11 @@ public class AnalysisGoban extends SimpleGoban
 		setStone(p, BoardType.EMPTY);
 		return false;	
 	}
+	
+	public boolean isIllegalKoCapture(Set<Goban> history, Point p, BoardType movingColor) {
+		SimpleGoban goban = (SimpleGoban) clone();
+		return history.contains(goban.move(p, movingColor));
+	}
 
 	public boolean isOneSpaceEye(Point p) 
 	{
@@ -113,11 +194,6 @@ public class AnalysisGoban extends SimpleGoban
 				return false;	
 		}
 		return true;
-	}
-
-	public boolean isIllegalKoCapture(Set<Goban> history, Point p, BoardType movingColor) {
-		SimpleGoban goban = (SimpleGoban) clone();
-		return history.contains(goban.move(p, movingColor));
 	}
 
 	public boolean isValidMove(Point p, BoardType movingColor) {
@@ -135,6 +211,11 @@ public class AnalysisGoban extends SimpleGoban
 		}
 	}
 
+	private boolean isVisited(Point p, int visited) 
+	{
+		return tmpBoard[p.getX()][p.getY()] == visited;
+	}
+
 	public boolean move(int x, int y, BoardType color)
 	{
 		boolean result = super.move(x, y, color);
@@ -142,26 +223,6 @@ public class AnalysisGoban extends SimpleGoban
 		return result;
 	}
 	
-	private void updateChains(int x, int y, BoardType color) 
-	{
-		// FIXME - this is not efficient
-		initChainMap(this);
-	}
-
-	public int getAtariCount(BoardType movingColor) 
-	{
-		int count = 0;
-		//visited++;
-		for (int i=0; i<size; i++) {
-			for (int j=0; j<size; j++) {
-				if (boardRep[i][j] == movingColor && tmpBoard[i][j] != visited) {
-					count += countLiberties(i, j, false);
-				}
-			}
-		}
-		return count;
-	}
-
 	public int scoreEmpty(Point p, double[][] territory) 
 	{
 		int score=0;
@@ -212,44 +273,15 @@ public class AnalysisGoban extends SimpleGoban
 		else throw new IllegalStateException("This should not happen: \n" + toString());
 	}
 
-	/**
-	 * Calculate the chinese score of the position.
-	 * This method assumes that all dead stones are already removed, i.e. all 
-	 * stones on the board are considered alive, and territories containing stones of both colors are neutral.
-	 * @return The chinese score of the position.
-	 */
-	public int chineseScore(double[][] territory) 
+	private void setVisited(Point p, int visited) 
 	{
-		/*
-		if (logger.isLoggable(Level.INFO))
-			logger.info("chineseScore: \n" + this);
-	    */
-		int score = 0;
-		visited++;
-		int i, j;
-		for (i = 0; i < size; i++) {
-			for (j = 0; j < size; j++) {
-				if (tmpBoard[i][j] == visited) {
-					continue;
-				}
-				else {
-					switch(boardRep[i][j]) {
-					case BLACK:
-						score++;
-						territory[i][j] += 1;
-						break;
-					case WHITE:
-						score--;
-						territory[i][j] -= 1;
-						break;
-					case EMPTY:
-						score += scoreEmpty(new Point(i, j), territory);
-						break;
-					}
-				}
-			}
-		}
-		return score;
+		tmpBoard[p.getX()][p.getY()] = visited;
+	}
+
+	private void updateChains(int x, int y, BoardType color) 
+	{
+		// FIXME - this is not efficient
+		initChainMap(this);
 	}
 
 }

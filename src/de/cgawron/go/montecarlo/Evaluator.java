@@ -15,7 +15,6 @@
  */
 package de.cgawron.go.montecarlo;
 
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -24,8 +23,8 @@ import java.util.logging.Logger;
 
 import de.cgawron.go.Goban;
 import de.cgawron.go.Goban.BoardType;
+import de.cgawron.go.GobanMap;
 import de.cgawron.go.Point;
-import de.cgawron.go.SimpleGoban;
 
 /** 
  * Evaluate a Node using Monte Carlo simulation
@@ -63,13 +62,25 @@ public class Evaluator
 			this.hashCodes = new Vector<Integer>(100, 100);
 			this.hashCodes.setSize(1);
 			this.hashCodes.set(0, goban.hashCode());
-			this.miaiMap = new TreeMap<Point, Miai>();
 			this.goban = new AnalysisGoban(goban);
 			this.boardSize = goban.getBoardSize();
+			this.miaiMap = new GobanMap<Miai>(this.boardSize);
 			this.movingColor = movingColor;
 			this.moveNo = 0;
+			
+			initializeMiai();
 		}
 			
+		private void initializeMiai() 
+		{
+			updateMiai();
+		}
+
+		private void updateMiai() 
+		{
+			// TODO Look for miai pairs and add them.	
+		}
+
 		public void addMiai(Miai miai)
 		{
 			miaiMap.put(miai.p1, miai);
@@ -89,6 +100,7 @@ public class Evaluator
 			AnalysisNode child = createChild();
 			child.move = p;
 			child.goban.move(p, movingColor);
+			updateMiai();
 			child.suitability = child.calculateSuitability();
 			//logger.info("createChild: " + child);
 			return child;
@@ -97,6 +109,7 @@ public class Evaluator
 		private double calculateSuitability() 
 		{
 			double suitability = 1;
+			BoardType color = goban.getStone(move);
 			
 			// Don't play Suicide
 			if (goban.getStone(move) == BoardType.EMPTY) return 0;
@@ -125,7 +138,7 @@ public class Evaluator
 			Miai miai = null;
 			if (parent.move != null) miai = miaiMap.get(parent.move);
 			if (miai != null && miai.other(parent.move).equals(move)) {
-				logger.info("miai found!!" + miai);
+				//logger.info("miai found!!" + miai);
 				suitability += miai.value;
 			}
 			
@@ -135,6 +148,13 @@ public class Evaluator
 			// Self-Atari is discouraged
 			if (saved < 0) 
 				suitability *= -1.0 / saved;
+			
+			if (goban.libertyMap.containsKey(move)) {
+				for (Chain chain : goban.libertyMap.get(move)) {
+					if (chain.color == color.opposite())
+						suitability += chain.size() / chain.numLiberties;
+				}
+			}
 			
 			return suitability;
 		}
@@ -167,7 +187,7 @@ public class Evaluator
 
 		public AnalysisNode createPassNode() 
 		{
-			logger.info("creating pass move");
+			//logger.info("creating pass move");
 			AnalysisNode child = createChild();
 			child.move = null;
 			return child;
@@ -247,8 +267,6 @@ public class Evaluator
 	public static double evaluateRandomSequence(Goban goban, Goban.BoardType movingColor, double[][] territory)
 	{
 		AnalysisNode root = new AnalysisNode(goban, movingColor);
-		// FIXME: Hack to test Miai
-		root.addMiai(new Miai(new Point(7, 6), new Point(7, 7), 30));
 		AnalysisNode currentNode = root; 
 		
 		while (true) {

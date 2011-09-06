@@ -91,7 +91,7 @@ public final class Neighborhood implements Iterable<Point>
 	{
 		this.x = x;
 		this.y = y;
-		size = (int) goban.getBoardSize();
+		size = goban.getBoardSize();
 	}
 
 	@Override
