@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.Vector;
 import java.util.logging.Logger;
@@ -152,6 +153,8 @@ public class AnalysisGoban extends SimpleGoban
 		// if (chainMap == null) {
 			chainMap = new GobanMap<Chain>(getBoardSize());
 			libertyMap = new GobanMap<Set<Chain>>(getBoardSize());
+			//chainMap = new TreeMap<Point, Chain>();
+			//libertyMap = new TreeMap<Point, Set<Chain>>();
 			chainList = new ArrayList<Chain>();
 		//}
 		visited++;

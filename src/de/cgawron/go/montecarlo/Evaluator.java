@@ -295,6 +295,7 @@ public class Evaluator
 		
 		while (true) {
 			currentNode = selectRandomMove(currentNode);
+			currentNode.parent.parent = null;
 			result.depth++;
 			// logger.info("evaluate: " + currentNode);
 
