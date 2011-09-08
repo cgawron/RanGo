@@ -23,7 +23,8 @@ public class AnalysisGoban extends SimpleGoban
 	
 	Map<Point, Chain> chainMap;
 	Map<Point, Set<Chain>> libertyMap;
-
+	List<Chain> chainList;
+	
 	public AnalysisGoban() {
 		super();
 		init();
@@ -39,26 +40,32 @@ public class AnalysisGoban extends SimpleGoban
 		init();
 	}
 
-	private void addChain(Point q) 
+	private void addChain(Point point) 
 	{
-		BoardType color = getStone(q);
+		BoardType color = getStone(point);
 		Chain chain = new Chain(color);
-		setVisited(q, visited);
-		chainMap.put(q, chain);
+		chainList.add(chain);
+		Queue<Point> queue = new LinkedList<Point>();
+		queue.add(point);
 		
-		for (Point p : new Neighborhood(this, q)) {
-			if (getStone(p) == color) {
-				if (!isVisited(p, visited)) {
-					chain.add(p);	
-					setVisited(p, visited);
+		while (!queue.isEmpty()) {
+			Point q = queue.poll();
+			chain.add(q);
+			chainMap.put(q, chain);
+			setVisited(q, visited);
+			for (Point p : new Neighborhood(this, q)) {
+				if (getStone(p) == color) {
+					if (!isVisited(p, visited)) {
+						queue.add(p);
+					}
 				}
-			}
-			else if (getStone(p) == BoardType.EMPTY) {
-				if (!isVisited(p, chain.id)) {
-					chain.addLiberty(p);
-					if (!libertyMap.containsKey(p)) libertyMap.put(p, new TreeSet<Chain>());
-					libertyMap.get(p).add(chain);
-					setVisited(p, chain.id);
+				else if (getStone(p) == BoardType.EMPTY) {
+					if (!isVisited(p, chain.id)) {
+						chain.addLiberty(p);
+						if (!libertyMap.containsKey(p)) libertyMap.put(p, new TreeSet<Chain>());
+						libertyMap.get(p).add(chain);
+						setVisited(p, chain.id);
+					}
 				}
 			}
 		}
@@ -121,12 +128,10 @@ public class AnalysisGoban extends SimpleGoban
 	public int getAtariCount(BoardType movingColor) 
 	{
 		int count = 0;
-		//visited++;
-		for (int i=0; i<size; i++) {
-			for (int j=0; j<size; j++) {
-				if (boardRep[i][j] == movingColor && tmpBoard[i][j] != visited) {
-					count += countLiberties(i, j, false);
-				}
+		for (Chain chain : chainList) {
+			if (chain.color == movingColor && chain.numLiberties == 1) {
+				// logger.info("Atari: " + movingColor + " " + chain);
+				count += chain.size();
 			}
 		}
 		return count;
@@ -143,10 +148,12 @@ public class AnalysisGoban extends SimpleGoban
 
 	private void initChainMap(Goban goban) 
 	{
-		if (chainMap == null) {
+		//logger.info("initChainMap: " + goban);
+		// if (chainMap == null) {
 			chainMap = new GobanMap<Chain>(getBoardSize());
 			libertyMap = new GobanMap<Set<Chain>>(getBoardSize());
-		}
+			chainList = new ArrayList<Chain>();
+		//}
 		visited++;
 		for (int i=0; i<size; i++) {
 			for (int j=0; j<size; j++) {
@@ -281,6 +288,7 @@ public class AnalysisGoban extends SimpleGoban
 	private void updateChains(int x, int y, BoardType color) 
 	{
 		// FIXME - this is not efficient
+		// logger.info("updateChains " + x + " " + y + " " + getStone(x, y));
 		initChainMap(this);
 	}
 

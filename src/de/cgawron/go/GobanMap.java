@@ -36,6 +36,12 @@ public class GobanMap<T> extends AbstractMap<Point, T>
 		
 		@Override
 		public boolean hasNext() {
+			if (i >= boardSize) {
+				i=0; 
+				j++;
+				if (j>= boardSize)
+					return false;
+			}
 			while (store[i][j] == null) {
 				i++;
 				if (i >= boardSize) {
@@ -51,7 +57,7 @@ public class GobanMap<T> extends AbstractMap<Point, T>
 		@SuppressWarnings("unchecked")
 		@Override
 		public Map.Entry<Point, T> next() {
-			return new AbstractMap.SimpleImmutableEntry<Point, T>(new Point(i, j), (T) store[i][j]);
+			return new AbstractMap.SimpleImmutableEntry<Point, T>(new Point(i, j), (T) store[i++][j]);
 		}
 
 		@Override

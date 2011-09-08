@@ -32,7 +32,14 @@ import de.cgawron.go.Point;
  */
 public class Evaluator
 {
-	private static class AnalysisNode implements Comparable<AnalysisNode>
+	public static class AnalysisResult {
+		public int score;
+		public int depth;
+	}
+
+
+
+	static class AnalysisNode implements Comparable<AnalysisNode>
 	{
 		int boardSize;
 		AnalysisGoban goban;
@@ -92,6 +99,7 @@ public class Evaluator
 			AnalysisNode child = new AnalysisNode(this);
 			child.movingColor = movingColor.opposite();
 			child.moveNo++;
+			this.parent = null;
 			return child;
 		}
 		
@@ -102,14 +110,17 @@ public class Evaluator
 			child.goban.move(p, movingColor);
 			updateMiai();
 			child.suitability = child.calculateSuitability();
-			//logger.info("createChild: " + child);
+			//logger.info("createChild: \n" + child);
 			return child;
 		}
 		
-		private double calculateSuitability() 
+		double calculateSuitability() 
 		{
 			double suitability = 1;
 			BoardType color = goban.getStone(move);
+			
+			// Only play on empty fields
+			if (parent.goban.getStone(move) != BoardType.EMPTY) return 0;
 			
 			// Don't play Suicide
 			if (goban.getStone(move) == BoardType.EMPTY) return 0;
@@ -121,15 +132,19 @@ public class Evaluator
 				if (hashCodes.get(i) == hashCode) return 0;
 			}
 			
-			// Capture is good
 			Vector<Point> removed = goban.getRemoved();
+			int saved = getSavedStones();
+
+			// don't fill an eye
+			if (parent.goban.isOneSpaceEye(move) && removed.size() == 0 && saved <= 0) return 0;
+			
+			// Capture is good
 			if (removed.size() > 0) {
 				//logger.info("Capturing: " + move + " captures " + removed.size());
 				suitability += 2 * removed.size();
 			}
 						
 			// Saving stones is good
-			int saved = getSavedStones();
 			if (saved > 0) {
 				//logger.info("Saving: " + move + " saves " + saved);
 				suitability += 2*saved;
@@ -141,10 +156,7 @@ public class Evaluator
 				//logger.info("miai found!!" + miai);
 				suitability += miai.value;
 			}
-			
-			// don't fill an eye
-			if (parent.goban.isOneSpaceEye(move) && saved <= 0) return 0;
-			
+						
 			// Self-Atari is discouraged
 			if (saved < 0) 
 				suitability *= -1.0 / saved;
@@ -164,19 +176,25 @@ public class Evaluator
 			int parentAtari = parent.getAtariCount(parent.movingColor);		
 			int myAtari = getAtariCount(parent.movingColor);
 			
-			//logger.info("getSavedStones: " + parentAtari + " - " + myAtari);
+			// logger.info("getSavedStones: " + move + ": " + parentAtari + " - " + myAtari);
 			return parentAtari - myAtari;
 		}
 
-		private int getAtariCount(BoardType movingColor) 
+		int getAtariCount(BoardType movingColor) 
 		{
 			switch (movingColor) {
 			case BLACK:
-				if (blackAtari < 0) blackAtari = goban.getAtariCount(movingColor);
+				if (true || blackAtari < 0) {
+					blackAtari = goban.getAtariCount(movingColor);
+					//logger.info("getAtariCount(BLACK): " + this);
+				}
 				return blackAtari;
 
 			case WHITE:
-				if (whiteAtari < 0) whiteAtari = goban.getAtariCount(movingColor);
+				if (true || whiteAtari < 0) {
+					whiteAtari = goban.getAtariCount(movingColor);
+					//logger.info("getAtariCount(WHITE): " + this);
+				}
 				return whiteAtari;
 				
 			case EMPTY:
@@ -207,6 +225,7 @@ public class Evaluator
 		public String toString() {
 			return "AnalysisNode [move=" + move
 					+ ", moveNo=" + moveNo + ", movingColor=" + movingColor
+					+ ", blackAtari=" + blackAtari + ", whiteAatari=" + whiteAtari
 					+ ", suitability=" + suitability + "\n" + goban + "]";
 		}
 	}
@@ -238,14 +257,17 @@ public class Evaluator
 	/** Evaluates the score of a Goban */
 	public static double evaluate(Goban goban, Goban.BoardType movingColor)
 	{
+		AnalysisResult result;
 		int boardSize = goban.getBoardSize();
 		double score = 0;
 		double score2 = 0;
+		double depth = 0;
 		double territory[][] = new double[boardSize][boardSize];
 		for (int i=0; i<NUM_SIMULATIONS; i++) {
-			double value = evaluateRandomSequence(goban, movingColor, territory); 
-			score += value;
-			score2 += value*value;
+			result = evaluateRandomSequence(goban, movingColor, territory); 
+			score += result.score;
+			score2 += result.score*result.score;
+			depth += result.depth;
 		}
 
 		StringBuffer sb = new StringBuffer();
@@ -258,28 +280,31 @@ public class Evaluator
 		
 		score2 = Math.sqrt((score2 - score*score/NUM_SIMULATIONS) / (NUM_SIMULATIONS - 1));
 		score /= NUM_SIMULATIONS;
+		depth /= NUM_SIMULATIONS;
 		
-		logger.info("evaluate: score=" + score + " +- " + score2 + "\n" + goban + "\n" + sb.toString());
+		logger.info("evaluate: score=" + score + " +- " + score2 + ", average depth=" + depth + "\n" + goban + "\n" + sb.toString());
 		
 		return score;
 	}
 	
-	public static double evaluateRandomSequence(Goban goban, Goban.BoardType movingColor, double[][] territory)
+	public static AnalysisResult evaluateRandomSequence(Goban goban, Goban.BoardType movingColor, double[][] territory)
 	{
+		AnalysisResult result = new AnalysisResult();
 		AnalysisNode root = new AnalysisNode(goban, movingColor);
 		AnalysisNode currentNode = root; 
 		
 		while (true) {
 			currentNode = selectRandomMove(currentNode);
+			result.depth++;
 			// logger.info("evaluate: " + currentNode);
 
 			if (currentNode.isPass() && currentNode.parent.isPass()) {
 				break;
 			}
 		} 
-		int score = chineseScore(currentNode, movingColor, territory);
+		result.score = chineseScore(currentNode, movingColor, territory);
 		// logger.info("score: " + score + "\n" + currentNode);
-		return score;
+		return result;
 	}
 	
 
@@ -310,7 +335,7 @@ public class Evaluator
 		}
 		
 		double random = Math.random();
-		Set<Map.Entry<AnalysisNode, Double> > entries = map.entrySet();
+		Set<Map.Entry<AnalysisNode, Double>> entries = map.entrySet();
 		//logger.info("selectRandomMove: " + parent.movingColor + " " + totalSuitability + " " + random);
 		for (Map.Entry<AnalysisNode, Double> entry : entries) {
 			random -= entry.getValue() / totalSuitability;

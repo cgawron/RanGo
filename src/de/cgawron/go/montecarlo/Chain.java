@@ -14,7 +14,8 @@ import de.cgawron.go.Point;
 public class Chain extends TreeSet<Point> implements Comparable<Chain>
 {
 	private static final long serialVersionUID = 1L;
-	private static int lastId = 0;
+	// The chain id will also be used as a "visited" marker. They are negative to avoid collisions there.
+	private static int lastId = -1;
 	
 	BoardType color;
 	int numLiberties;
@@ -23,7 +24,7 @@ public class Chain extends TreeSet<Point> implements Comparable<Chain>
 
 	public Chain(BoardType color) {
 		super();
-		this.id = lastId++;
+		this.id = lastId--;
 		this.color = color;
 	}
 
