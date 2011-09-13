@@ -1,30 +1,90 @@
 package de.cgawron.go.montecarlo;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
-import java.util.TreeMap;
-import java.util.TreeSet;
 import java.util.Vector;
 import java.util.logging.Logger;
 
 import de.cgawron.go.Goban;
-import de.cgawron.go.GobanMap;
 import de.cgawron.go.Neighborhood;
 import de.cgawron.go.Point;
 import de.cgawron.go.SimpleGoban;
 
 public class AnalysisGoban extends SimpleGoban 
 {
-	public static Logger logger = Logger.getLogger(AnalysisGoban.class.getName());
+	/**
+	 * A connected chain of stones.
+	 *  
+	 * @author Christian Gawron
+	 *
+	 */
+	public class Chain implements Comparable<Chain>
+	{
+		BoardType color;
+		int numLiberties;
+		int size;
+		int id;
+
+		public Chain(BoardType color, int id) {
+			this.id = id;
+			this.color = color;
+		}
+
+		public void addLiberty(Point p) 
+		{
+			numLiberties++;
+		}
+
+		@Override
+		public int compareTo(Chain chain) 
+		{
+			if (this.id < chain.id) return -1;
+			else if (this.id > chain.id) return 1;
+			else return 0;
+		}
+
+		@Override
+		public String toString() {
+			return "Chain [color=" + color + ", numLiberties=" + numLiberties
+					+ ", size=" + size + ", id=" + id + "]";
+		}
+	}
+
+	public class Eye implements Comparable<Eye> 
+	{
+		int size;
+		int id;
+
+		public Eye(int id) {
+			this.id = id;
+		}
+
+		@Override
+		public int compareTo(Eye eye) 
+		{
+			if (this.id < eye.id) return -1;
+			else if (this.id > eye.id) return 1;
+			else return 0;
+		}
+
+
+	}
+
+	private static final int INITIAL_CHAIN_SIZE = 10;
 	
-	Map<Point, Chain> chainMap;
-	Map<Point, Set<Chain>> libertyMap;
-	List<Chain> chainList;
+	public static Logger logger = Logger.getLogger(AnalysisGoban.class.getName());
+	int lastChainId;
+	int lastEyeId;
+	int[] chainMap;
+	int[] eyeMap;
+	Chain[] chains;
+	
+	Eye[] eyes;
 	
 	public AnalysisGoban() {
 		super();
@@ -43,35 +103,67 @@ public class AnalysisGoban extends SimpleGoban
 
 	private void addChain(Point point) 
 	{
+		//logger.info("addChain: " + point);
 		BoardType color = getStone(point);
-		Chain chain = new Chain(color);
-		chainList.add(chain);
+		Chain chain = new Chain(color, lastChainId++);
+		if (chain.id >= chains.length)
+			chains = Arrays.copyOf(chains, 2*chains.length);
+		chains[chain.id] = chain;
 		Queue<Point> queue = new LinkedList<Point>();
 		queue.add(point);
 		
+		visited++;
+		//logger.info("addChain: visited=" + visited);
 		while (!queue.isEmpty()) {
 			Point q = queue.poll();
-			chain.add(q);
-			chainMap.put(q, chain);
+			chainMap[q.getX()*size + q.getY()] = chain.id;
+			chain.size++;
 			setVisited(q, visited);
 			for (Point p : new Neighborhood(this, q)) {
 				if (getStone(p) == color) {
-					if (!isVisited(p, visited)) {
+					if (chainMap[p.getX()*size + p.getY()] != chain.id) {
 						queue.add(p);
 					}
 				}
 				else if (getStone(p) == BoardType.EMPTY) {
-					if (!isVisited(p, chain.id)) {
+					if (!isVisited(p, visited)) {
 						chain.addLiberty(p);
-						if (!libertyMap.containsKey(p)) libertyMap.put(p, new TreeSet<Chain>());
-						libertyMap.get(p).add(chain);
-						setVisited(p, chain.id);
+						setVisited(p, visited);
+						//libertyMap[p.getX()][p.getY()] = chain.id;
 					}
 				}
 			}
 		}
+		//logger.info("addChain: chain=" + chain);
 	}
 	
+	private void addEye(Point point) 
+	{
+		//logger.info("addChain: " + point);
+		Eye eye = new Eye(lastChainId++);
+		if (eye.id >= eyes.length)
+			eyes = Arrays.copyOf(eyes, 2*eyes.length);
+		eyes[eye.id] = eye;
+		Queue<Point> queue = new LinkedList<Point>();
+		queue.add(point);
+		
+		visited++;
+		//logger.info("addEye: visited=" + visited);
+		while (!queue.isEmpty()) {
+			Point q = queue.poll();
+			eyeMap[q.getX()*size + q.getY()] = eye.id;
+			eye.size++;
+			setVisited(q, visited);
+			for (Point p : new Neighborhood(this, q)) {
+				if (getStone(p) == BoardType.EMPTY) {
+					if (eyeMap[p.getX()*size + p.getY()] != eye.id) {
+						queue.add(p);
+					}
+				}
+			}
+		}
+		//logger.info("addEye: eye=" + eye);
+	}
 	/**
 	 * Calculate the chinese score of the position.
 	 * This method assumes that all dead stones are already removed, i.e. all 
@@ -123,19 +215,28 @@ public class AnalysisGoban extends SimpleGoban
 	public void copy(Goban goban)
 	{
 		super.copy(goban);
-		initChainMap(goban);
+		initAnalysis(goban);
 	}
 
 	public int getAtariCount(BoardType movingColor) 
 	{
 		int count = 0;
-		for (Chain chain : chainList) {
+		//logger.info("Ataricount: " + lastChainId);
+		for (int i=0; i<lastChainId; i++) {
+			Chain chain = chains[i];
+			//logger.info("Ataricount: " + chain);
 			if (chain.color == movingColor && chain.numLiberties == 1) {
-				// logger.info("Atari: " + movingColor + " " + chain);
-				count += chain.size();
+				//logger.info("Atari: " + movingColor + " " + chain);
+				count += chain.size;
 			}
 		}
 		return count;
+	}
+
+	public Chain getChain(Point move) {
+		int id = chainMap[move.getX()*size + move.getY()];
+		if (id < 0) return null;
+		else return chains[id];
 	}
 
 	public Vector<Point> getRemoved() 
@@ -147,26 +248,30 @@ public class AnalysisGoban extends SimpleGoban
 	{
 	}
 
-	private void initChainMap(Goban goban) 
+	private void initAnalysis(Goban goban) 
 	{
-		//logger.info("initChainMap: " + goban);
-		// if (chainMap == null) {
-			chainMap = new GobanMap<Chain>(getBoardSize());
-			libertyMap = new GobanMap<Set<Chain>>(getBoardSize());
-			//chainMap = new TreeMap<Point, Chain>();
-			//libertyMap = new TreeMap<Point, Set<Chain>>();
-			chainList = new ArrayList<Chain>();
-		//}
-		visited++;
+		lastChainId = 0;
+		lastEyeId = 0;
+		chainMap = new int[getBoardSize()*getBoardSize()];
+		eyeMap = new int[getBoardSize()*getBoardSize()];
+		Arrays.fill(chainMap, -1);
+		Arrays.fill(eyeMap, -1);
+		chains = new Chain[INITIAL_CHAIN_SIZE];
+		eyes = new Eye[INITIAL_CHAIN_SIZE];
+		
 		for (int i=0; i<size; i++) {
 			for (int j=0; j<size; j++) {
-				if (boardRep[i][j] != BoardType.EMPTY && tmpBoard[i][j] != visited) {
+				if (boardRep[i][j] != BoardType.EMPTY && chainMap[i*size+j] < 0) {
 					addChain(new Point(i, j));
 				}
+				if (boardRep[i][j] == BoardType.EMPTY && eyeMap[i*size+j] < 0) {
+					addEye(new Point(i, j));
+				}
+
 			}
 		}
 	}
-
+	
 	public boolean isCapture(Point p, BoardType movingColor) 
 	{
 		
@@ -186,7 +291,7 @@ public class AnalysisGoban extends SimpleGoban
 		setStone(p, BoardType.EMPTY);
 		return false;	
 	}
-	
+
 	public boolean isIllegalKoCapture(Set<Goban> history, Point p, BoardType movingColor) {
 		SimpleGoban goban = (SimpleGoban) clone();
 		return history.contains(goban.move(p, movingColor));
@@ -225,14 +330,14 @@ public class AnalysisGoban extends SimpleGoban
 	{
 		return tmpBoard[p.getX()][p.getY()] == visited;
 	}
-
+	
 	public boolean move(int x, int y, BoardType color)
 	{
 		boolean result = super.move(x, y, color);
 		updateChains(x, y, color);
 		return result;
 	}
-	
+
 	public int scoreEmpty(Point p, double[][] territory) 
 	{
 		int score=0;
@@ -292,7 +397,7 @@ public class AnalysisGoban extends SimpleGoban
 	{
 		// FIXME - this is not efficient
 		// logger.info("updateChains " + x + " " + y + " " + getStone(x, y));
-		initChainMap(this);
+		initAnalysis(this);
 	}
 
 }

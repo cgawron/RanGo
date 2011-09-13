@@ -18,6 +18,7 @@ import org.junit.runners.Parameterized.Parameters;
 import de.cgawron.go.Goban;
 import de.cgawron.go.Goban.BoardType;
 import de.cgawron.go.Point;
+import de.cgawron.go.montecarlo.AnalysisGoban.Chain;
 import de.cgawron.go.sgf.GameTree;
 
 /**
@@ -59,13 +60,11 @@ public class LibertyTest {
 	{
 		Evaluator.AnalysisNode parent = new Evaluator.AnalysisNode(goban, BoardType.BLACK);
 		Evaluator.AnalysisNode node;
-		int size = goban.getBoardSize();
-		
 		// logger.info(parent.toString());
 		node = parent.createChild(move);
 		// logger.info(node.toString());
 		
-		Chain chain = node.goban.chainMap.get(move);
+		Chain chain = node.goban.getChain(move);
 		assertEquals("Testing expected liberties", expectedLiberties, chain.numLiberties);
 	}
 

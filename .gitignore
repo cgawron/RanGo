@@ -1,4 +1,6 @@
 /build
 /depcache
+/dist
 /bin
 /.settings
+/TEST-de.cgawron.go.montecarlo.ScoreTest.xml
