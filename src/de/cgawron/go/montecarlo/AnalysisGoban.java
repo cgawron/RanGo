@@ -2,6 +2,7 @@ package de.cgawron.go.montecarlo;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -17,22 +18,70 @@ import de.cgawron.go.SimpleGoban;
 
 public class AnalysisGoban extends SimpleGoban 
 {
+	public class Adjacency 
+	{
+		Cluster cluster1;
+		Cluster cluster2;
+		
+		Adjacency(Cluster cluster1, Cluster cluster2)
+		{
+			this.cluster1 = cluster1;
+			this.cluster2 = cluster2;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			Adjacency other = (Adjacency) obj;
+
+			if (cluster1 == null) {
+				if (other.cluster1 != null)
+					return false;
+			} else if (!cluster1.equals(other.cluster1))
+				return false;
+			if (cluster2 == null) {
+				if (other.cluster2 != null)
+					return false;
+			} else if (!cluster2.equals(other.cluster2))
+				return false;
+			return true;
+		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+
+			result = prime * result
+					+ ((cluster1 == null) ? 0 : cluster1.hashCode());
+			result = prime * result
+					+ ((cluster2 == null) ? 0 : cluster2.hashCode());
+			return result;
+		}
+
+		@Override
+		public String toString() {
+			return "Adjacency [cluster1=" + cluster1 + ", cluster2=" + cluster2 + "]";
+		}
+	}
+
 	/**
 	 * A connected chain of stones.
 	 *  
 	 * @author Christian Gawron
 	 *
 	 */
-	public class Chain implements Comparable<Chain>
+	public class Chain extends Cluster implements Comparable<Chain>
 	{
-		BoardType color;
 		int numLiberties;
-		int size;
-		int id;
-
-		public Chain(BoardType color, int id) {
-			this.id = id;
-			this.color = color;
+		
+		public Chain(BoardType color) {
+			super(lastChainId++, color);
 		}
 
 		public void addLiberty(Point p) 
@@ -55,13 +104,26 @@ public class AnalysisGoban extends SimpleGoban
 		}
 	}
 
-	public class Eye implements Comparable<Eye> 
+	public class Cluster 
 	{
-		int size;
-		int id;
-
-		public Eye(int id) {
+		protected BoardType color;
+		protected int size;
+		protected int id;
+		
+		Cluster(int id, BoardType color) 
+		{
 			this.id = id;
+			this.color = color;
+		}
+
+	}
+
+	public class Eye extends Cluster implements Comparable<Eye> 
+	{
+	
+		public Eye() 
+		{
+			super(lastEyeId++, BoardType.EMPTY);
 		}
 
 		@Override
@@ -70,6 +132,11 @@ public class AnalysisGoban extends SimpleGoban
 			if (this.id < eye.id) return -1;
 			else if (this.id > eye.id) return 1;
 			else return 0;
+		}
+
+		@Override
+		public String toString() {
+			return "Eye [size=" + size + ", id=" + id + "]";
 		}
 
 
@@ -101,11 +168,23 @@ public class AnalysisGoban extends SimpleGoban
 		init();
 	}
 
-	private void addChain(Point point) 
+	private void addAdjacency(Chain chain1, Chain chain2) 
+	{
+		// TODO Auto-generated method stub
+		//logger.info("adj: " + chain1 + ", " + chain2);
+	}
+	
+	private void addAdjacency(Chain chain, Eye eye) 
+	{
+		// TODO Auto-generated method stub
+		//logger.info("adj: " + chain + ", " + eye);
+	}
+
+	private void addChain(Point point, Set<Adjacency> adjacencySet) 
 	{
 		//logger.info("addChain: " + point);
 		BoardType color = getStone(point);
-		Chain chain = new Chain(color, lastChainId++);
+		Chain chain = new Chain(color);
 		if (chain.id >= chains.length)
 			chains = Arrays.copyOf(chains, 2*chains.length);
 		chains[chain.id] = chain;
@@ -129,18 +208,24 @@ public class AnalysisGoban extends SimpleGoban
 					if (!isVisited(p, visited)) {
 						chain.addLiberty(p);
 						setVisited(p, visited);
-						//libertyMap[p.getX()][p.getY()] = chain.id;
+						if (eyeMap[p.getX()*size + p.getY()] >= 0) {
+							addAdjacency(chain, eyes[eyeMap[p.getX()*size + p.getY()]]);
+							// adjacencySet.add(new Adjacency(chain, eyes[eyeMap[p.getX()*size + p.getY()]]));
+						}
 					}
+				}
+				else if (chainMap[p.getX()*size + p.getY()] >= 0) {
+					addAdjacency(chain, chains[chainMap[p.getX()*size + p.getY()]]);
+					// adjacencySet.add(new Adjacency(chain, chains[chainMap[p.getX()*size + p.getY()]]));
 				}
 			}
 		}
 		//logger.info("addChain: chain=" + chain);
 	}
-	
-	private void addEye(Point point) 
+	private void addEye(Point point, Set<Adjacency> adjacencySet) 
 	{
 		//logger.info("addChain: " + point);
-		Eye eye = new Eye(lastChainId++);
+		Eye eye = new Eye();
 		if (eye.id >= eyes.length)
 			eyes = Arrays.copyOf(eyes, 2*eyes.length);
 		eyes[eye.id] = eye;
@@ -160,10 +245,15 @@ public class AnalysisGoban extends SimpleGoban
 						queue.add(p);
 					}
 				}
+				else if (chainMap[p.getX()*size + p.getY()] >= 0) {
+					addAdjacency(chains[chainMap[p.getX()*size + p.getY()]], eye);
+					// adjacencySet.add(new Adjacency(eye, chains[chainMap[p.getX()*size + p.getY()]]));
+				}
 			}
 		}
 		//logger.info("addEye: eye=" + eye);
 	}
+
 	/**
 	 * Calculate the chinese score of the position.
 	 * This method assumes that all dead stones are already removed, i.e. all 
@@ -188,11 +278,13 @@ public class AnalysisGoban extends SimpleGoban
 					switch(boardRep[i][j]) {
 					case BLACK:
 						score++;
-						territory[i][j] += 1;
+						if (territory != null)
+							territory[i][j] += 1;
 						break;
 					case WHITE:
 						score--;
-						territory[i][j] -= 1;
+						if (territory != null)
+							territory[i][j] -= 1;
 						break;
 					case EMPTY:
 						score += scoreEmpty(new Point(i, j), territory);
@@ -258,18 +350,24 @@ public class AnalysisGoban extends SimpleGoban
 		Arrays.fill(eyeMap, -1);
 		chains = new Chain[INITIAL_CHAIN_SIZE];
 		eyes = new Eye[INITIAL_CHAIN_SIZE];
+		Set<Adjacency> adjacencySet = new HashSet<Adjacency>();
 		
 		for (int i=0; i<size; i++) {
 			for (int j=0; j<size; j++) {
 				if (boardRep[i][j] != BoardType.EMPTY && chainMap[i*size+j] < 0) {
-					addChain(new Point(i, j));
+					addChain(new Point(i, j), adjacencySet);
 				}
 				if (boardRep[i][j] == BoardType.EMPTY && eyeMap[i*size+j] < 0) {
-					addEye(new Point(i, j));
+					addEye(new Point(i, j), adjacencySet);
 				}
-
 			}
 		}
+		
+		/*
+		for (Adjacency adj : adjacencySet) {
+			logger.info("adjacency: " + adj);
+		}
+		*/
 	}
 	
 	public boolean isCapture(Point p, BoardType movingColor) 
@@ -375,13 +473,15 @@ public class AnalysisGoban extends SimpleGoban
 			return 0;
 		else if (touchBlack) {
 			for (Point q : area) {
-				territory[q.getX()][q.getY()] += 1.0;
+				if (territory != null)
+					territory[q.getX()][q.getY()] += 1.0;
 			}
 			return score;
 		}
 		else if (touchWhite) {
 			for (Point q : area) {
-				territory[q.getX()][q.getY()] -= 1.0;
+				if (territory != null)
+					territory[q.getX()][q.getY()] -= 1.0;
 			}
 			return -score;
 		}

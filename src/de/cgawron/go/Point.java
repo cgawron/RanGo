@@ -12,6 +12,8 @@
  */
 package de.cgawron.go;
 
+import java.util.Iterator;
+
 /**
  * A point on a Goban.
  * 
@@ -19,6 +21,21 @@ package de.cgawron.go;
  */
 public class Point implements Comparable<Point>
 {
+	private static class All implements Iterable<Point> {
+
+		private int boardSize;
+
+		All(int boardSize) {
+			this.boardSize = boardSize;
+		}
+		
+		@Override
+		public Iterator<Point> iterator() {
+			return new BoardIterator(boardSize);
+		}
+
+	}
+
 	/** The x coordinate of the point. */
 	protected short x;
 
@@ -258,6 +275,18 @@ public class Point implements Comparable<Point>
 			throw new UnsupportedOperationException("remove not supported");
 		}
 
+	}
+
+	static Object[] ALL = new Object[20];
+	
+	@SuppressWarnings("unchecked")
+	public static Iterable<Point> all(int boardSize) 
+	{
+		if (ALL[boardSize] == null) {
+			ALL[boardSize] = new All(boardSize);
+		}
+		
+		return (Iterable<Point>) ALL[boardSize];
 	}
 
 }

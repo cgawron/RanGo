@@ -23,22 +23,23 @@ import de.cgawron.go.sgf.GameTree;
  * @author Christian Gawron
  */
 @RunWith(Parameterized.class)
-public class EvaluatorTest {
+public class EvaluatorTest2 {
 	@Parameters
     public static List<Object[]> data() {
             return Arrays.asList(new Object[][] { 
-        			{ "lifeAndDeath1.sgf", BoardType.BLACK }, 
-//        			{ "suitability1.sgf", BoardType.BLACK }, 
-           });
+            			{ "simpleScore1.sgf", 9.0 }, 
+            		    { "simpleScore2.sgf", 5.0 }, 
+            		    { "score1.sgf", 9.0 }, 
+            		    { "score2.sgf", 5.0 }   
+            });
     }
     
     private Goban goban;
-    private BoardType movingColor;
     private double expectedScore;
     private File baseDir = new File("test/sgf");
     
-    public EvaluatorTest(String inputSGF, BoardType movingColor) throws Exception {
-    	this.movingColor = movingColor;
+    public EvaluatorTest2(String inputSGF, double expectedScore) throws Exception {
+    	this.expectedScore = expectedScore;
     	File inputFile = new File(baseDir, inputSGF);
     	GameTree gameTree = new GameTree(inputFile);
     	goban = gameTree.getLeafs().get(0).getGoban();
@@ -49,7 +50,7 @@ public class EvaluatorTest {
 	 */
 	@Test
 	public void testEvaluateOne() {
-		double score = Evaluator.evaluate(goban, movingColor, 6.5);
+		double score = Evaluator.evaluateOne(goban, BoardType.BLACK, 6.5);
 		assertEquals("Testing expected score", expectedScore, score, 0.2);
 	}
 
