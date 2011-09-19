@@ -8,6 +8,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.Vector;
 import java.util.logging.Logger;
 
@@ -77,7 +78,7 @@ public class AnalysisGoban extends SimpleGoban
 	 * @author Christian Gawron
 	 *
 	 */
-	public class Chain extends Cluster implements Comparable<Chain>
+	public class Chain extends Cluster
 	{
 		int numLiberties;
 		
@@ -91,11 +92,14 @@ public class AnalysisGoban extends SimpleGoban
 		}
 
 		@Override
-		public int compareTo(Chain chain) 
+		public int compareTo(Cluster cluster) 
 		{
-			if (this.id < chain.id) return -1;
-			else if (this.id > chain.id) return 1;
-			else return 0;
+			if (cluster instanceof Chain) {
+				if (this.id < cluster.id) return -1;
+				else if (this.id > cluster.id) return 1;
+				else return 0;
+			}
+			else return +1;
 		}
 
 		@Override
@@ -105,41 +109,53 @@ public class AnalysisGoban extends SimpleGoban
 		}
 	}
 
-	public class Cluster 
+	public abstract class Cluster implements Comparable<Cluster>
 	{
 		protected BoardType color;
 		protected int size;
 		protected int id;
 		
+		protected Set<Cluster> neighbors; 
+		
 		Cluster(int id, BoardType color) 
 		{
 			this.id = id;
 			this.color = color;
+			this. neighbors = new TreeSet<Cluster>();
+		}
+		
+		public void addNeighbor(Cluster cluster)
+		{
+			neighbors.add(cluster);
 		}
 
 	}
 
-	public class Eye extends Cluster implements Comparable<Eye> 
+	public class Eye extends Cluster  
 	{
-	
-		public boolean dame;
-
+		/** This eye is definitely a real eye for a group */
+		public boolean real;
+		public BoardType color;
+		
 		public Eye() 
 		{
 			super(lastEyeId++, BoardType.EMPTY);
 		}
 
 		@Override
-		public int compareTo(Eye eye) 
+		public int compareTo(Cluster cluster) 
 		{
-			if (this.id < eye.id) return -1;
-			else if (this.id > eye.id) return 1;
-			else return 0;
+			if (cluster instanceof Eye) {
+				if (this.id < cluster.id) return -1;
+				else if (this.id > cluster.id) return 1;
+				else return 0;
+			}
+			else return -1;
 		}
 
 		@Override
 		public String toString() {
-			return "Eye [size=" + size + ", id=" + id + "]";
+			return "Eye [size=" + size + ", id=" + id + ", real=" + real + ", color=" + color + "]";
 		}
 
 
@@ -171,19 +187,13 @@ public class AnalysisGoban extends SimpleGoban
 		init();
 	}
 
-	private void addAdjacency(Chain chain1, Chain chain2) 
+	private void addAdjacency(Cluster chain1, Cluster chain2) 
 	{
-		// TODO Auto-generated method stub
-		//logger.info("adj: " + chain1 + ", " + chain2);
+		chain1.addNeighbor(chain2);
+		chain2.addNeighbor(chain1);
 	}
 	
-	private void addAdjacency(Chain chain, Eye eye) 
-	{
-		// TODO Auto-generated method stub
-		//logger.info("adj: " + chain + ", " + eye);
-	}
-
-	private void addChain(Point point, Set<Adjacency> adjacencySet) 
+	private void addChain(Point point) 
 	{
 		//logger.info("addChain: " + point);
 		BoardType color = getStone(point);
@@ -213,19 +223,17 @@ public class AnalysisGoban extends SimpleGoban
 						setVisited(p, visited);
 						if (eyeMap[p.getX()*size + p.getY()] >= 0) {
 							addAdjacency(chain, eyes[eyeMap[p.getX()*size + p.getY()]]);
-							// adjacencySet.add(new Adjacency(chain, eyes[eyeMap[p.getX()*size + p.getY()]]));
 						}
 					}
 				}
 				else if (chainMap[p.getX()*size + p.getY()] >= 0) {
 					addAdjacency(chain, chains[chainMap[p.getX()*size + p.getY()]]);
-					// adjacencySet.add(new Adjacency(chain, chains[chainMap[p.getX()*size + p.getY()]]));
 				}
 			}
 		}
 		//logger.info("addChain: chain=" + chain);
 	}
-	private void addEye(Point point, Set<Adjacency> adjacencySet) 
+	private void addEye(Point point) 
 	{
 		//logger.info("addChain: " + point);
 		Eye eye = new Eye();
@@ -250,7 +258,6 @@ public class AnalysisGoban extends SimpleGoban
 				}
 				else if (chainMap[p.getX()*size + p.getY()] >= 0) {
 					addAdjacency(chains[chainMap[p.getX()*size + p.getY()]], eye);
-					// adjacencySet.add(new Adjacency(eye, chains[chainMap[p.getX()*size + p.getY()]]));
 				}
 			}
 		}
@@ -365,22 +372,40 @@ public class AnalysisGoban extends SimpleGoban
 		for (int i=0; i<size; i++) {
 			for (int j=0; j<size; j++) {
 				if (boardRep[i][j] != BoardType.EMPTY && chainMap[i*size+j] < 0) {
-					addChain(new Point(i, j), adjacencySet);
+					addChain(new Point(i, j));
 				}
 				if (boardRep[i][j] == BoardType.EMPTY && eyeMap[i*size+j] < 0) {
-					addEye(new Point(i, j), adjacencySet);
+					addEye(new Point(i, j));
 				}
 			}
 		}
 		
-		/*
-		for (Adjacency adj : adjacencySet) {
-			logger.info("adjacency: " + adj);
+		for (int i=0; i < lastEyeId; i++) {
+			Eye eye = eyes[i];
+			analyzeEye(eye);
 		}
-		*/
-
 	}
 	
+	private void analyzeEye(Eye eye) 
+	{
+		// if an eye is only adjacent to one group, it can't be false
+		if (eye.neighbors.size() == 1)
+		{
+			eye.real = true;
+		}
+		BoardType color = null;
+		boolean undefined = false;
+		for (Cluster cluster : eye.neighbors) {
+			Chain chain = (Chain) cluster;
+			if (color == null)
+				color = chain.color;
+			else if (color != chain.color)
+				undefined = true;
+		}
+		if (!undefined)
+			eye.color = color;	
+	}
+
 	public boolean isCapture(Point p, BoardType movingColor) 
 	{
 		

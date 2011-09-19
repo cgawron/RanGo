@@ -259,7 +259,7 @@ public class Evaluator
 			for (int i=moveNo-1; i>0; i--) {
 				if (hashCodes.get(i) == hashCode) return 0;
 			}
-			
+					
 			Vector<Point> removed = goban.getRemoved();
 			int saved = getSavedStones();
 
@@ -291,8 +291,8 @@ public class Evaluator
 			
 			
 			Eye eye = parent.goban.getEye(move);
-			if (eye != null && !eye.dame && eye.size < 7) {
-				logger.info(eye.toString());
+			if (eye.size < 7) {
+				logger.info("suitability: " + move + ", eyeye=" + eye);
 				suitability *= 2;
 			}
 			
