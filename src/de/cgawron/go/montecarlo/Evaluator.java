@@ -15,10 +15,18 @@
  */
 package de.cgawron.go.montecarlo;
 
+import java.util.LinkedList;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.Vector;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import de.cgawron.go.Goban;
@@ -35,9 +43,29 @@ public class Evaluator
 	public static class AnalysisResult {
 		public int score;
 		public int depth;
+		public double[][] territory;
+		
+		public AnalysisResult(double[][] territory) {
+			this.territory = territory;
+		}
 	}
 
+	public static class RandomSimulator implements Callable<AnalysisResult>
+	{
+		private final AnalysisNode root;
+		private final double[][] territory;
 
+		public RandomSimulator(AnalysisNode root, double[][] territory)
+		{
+			this.root = root;
+			this.territory = territory;
+		}
+		
+		@Override
+		public final AnalysisResult call() throws Exception {
+			return root.evaluateRandomSequence(territory);
+		}
+	}
 
 	static class AnalysisNode implements Comparable<AnalysisNode>
 	{
@@ -78,6 +106,26 @@ public class Evaluator
 			initializeMiai();
 		}
 			
+		public AnalysisResult evaluateRandomSequence(double[][] territory)
+		{
+			AnalysisResult result = new AnalysisResult(territory);
+			AnalysisNode currentNode = this; 
+			
+			while (true) {
+				currentNode = selectRandomMove(currentNode);
+				currentNode.parent.parent = null;
+				result.depth++;
+				// logger.info("evaluate: " + currentNode);
+
+				if (currentNode.isPass() && currentNode.parent.isPass()) {
+					break;
+				}
+			} 
+			result.score = chineseScore(currentNode, this.movingColor, result.territory);
+			// logger.info("score: " + score + "\n" + currentNode);
+			return result;
+		}
+
 		private void initializeMiai() 
 		{
 			updateMiai();
@@ -161,12 +209,14 @@ public class Evaluator
 			if (saved < 0) 
 				suitability *= -1.0 / saved;
 			
+			/*
 			if (goban.libertyMap.containsKey(move)) {
 				for (Chain chain : goban.libertyMap.get(move)) {
 					if (chain.color == color.opposite())
 						suitability += chain.size() / chain.numLiberties;
 				}
 			}
+			*/
 			
 			return suitability;
 		}
@@ -184,14 +234,14 @@ public class Evaluator
 		{
 			switch (movingColor) {
 			case BLACK:
-				if (true || blackAtari < 0) {
+				if (blackAtari < 0) {
 					blackAtari = goban.getAtariCount(movingColor);
 					//logger.info("getAtariCount(BLACK): " + this);
 				}
 				return blackAtari;
 
 			case WHITE:
-				if (true || whiteAtari < 0) {
+				if (whiteAtari < 0) {
 					whiteAtari = goban.getAtariCount(movingColor);
 					//logger.info("getAtariCount(WHITE): " + this);
 				}
@@ -257,17 +307,43 @@ public class Evaluator
 	/** Evaluates the score of a Goban */
 	public static double evaluate(Goban goban, Goban.BoardType movingColor)
 	{
+		AnalysisNode root = new AnalysisNode(goban, movingColor);
 		AnalysisResult result;
 		int boardSize = goban.getBoardSize();
+		double[][] territory = new double[boardSize][boardSize];
 		double score = 0;
 		double score2 = 0;
 		double depth = 0;
-		double territory[][] = new double[boardSize][boardSize];
+		
+		ExecutorService executor = Executors.newFixedThreadPool(2);
+		
+		Queue<Future<AnalysisResult>> workQueue = new LinkedList<Future<AnalysisResult>>();
 		for (int i=0; i<NUM_SIMULATIONS; i++) {
-			result = evaluateRandomSequence(goban, movingColor, territory); 
-			score += result.score;
-			score2 += result.score*result.score;
-			depth += result.depth;
+			RandomSimulator simulator = new RandomSimulator(root, territory);
+			workQueue.add(executor.submit(simulator));
+		}
+		
+		Future<AnalysisResult> future;
+		while (workQueue.size() > 0)
+		{
+			try {
+				future = workQueue.peek();
+				if (!future.isDone()) {
+					Thread.sleep(500);
+					continue;
+				}
+				else
+				{
+					result = future.get(); 
+					score += result.score;
+					score2 += result.score*result.score;
+					depth += result.depth;
+					workQueue.remove(future);
+				}
+			}
+			catch (Exception ex) {
+				logger.log(Level.WARNING, "evaluate: ", ex);
+			}
 		}
 
 		StringBuffer sb = new StringBuffer();
@@ -287,29 +363,7 @@ public class Evaluator
 		return score;
 	}
 	
-	public static AnalysisResult evaluateRandomSequence(Goban goban, Goban.BoardType movingColor, double[][] territory)
-	{
-		AnalysisResult result = new AnalysisResult();
-		AnalysisNode root = new AnalysisNode(goban, movingColor);
-		AnalysisNode currentNode = root; 
-		
-		while (true) {
-			currentNode = selectRandomMove(currentNode);
-			currentNode.parent.parent = null;
-			result.depth++;
-			// logger.info("evaluate: " + currentNode);
-
-			if (currentNode.isPass() && currentNode.parent.isPass()) {
-				break;
-			}
-		} 
-		result.score = chineseScore(currentNode, movingColor, territory);
-		// logger.info("score: " + score + "\n" + currentNode);
-		return result;
-	}
 	
-
-
 	/** 
 	 * Try to make a (sensible) random move. 
 	 * A move is considered sensible if it is <ul>
