@@ -32,7 +32,8 @@ public class SuitabilityTest {
     public static List<Object[]> data() {
             return Arrays.asList(new Object[][] { 
             			{ "suitability1.sgf", BoardType.BLACK },
-               			{ "suitability1.sgf", BoardType.WHITE }
+               			{ "suitability1.sgf", BoardType.WHITE },
+               			{ "lifeAndDeath1.sgf", BoardType.WHITE }
             });
     }
     

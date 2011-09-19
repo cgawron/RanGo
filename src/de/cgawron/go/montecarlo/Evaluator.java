@@ -33,6 +33,7 @@ import de.cgawron.go.Goban;
 import de.cgawron.go.Goban.BoardType;
 import de.cgawron.go.GobanMap;
 import de.cgawron.go.Point;
+import de.cgawron.go.montecarlo.AnalysisGoban.Eye;
 
 /** 
  * Evaluate a Node using Monte Carlo simulation
@@ -288,14 +289,12 @@ public class Evaluator
 			if (saved < 0) 
 				suitability *= -1.0 / saved;
 			
-			/*
-			if (goban.libertyMap.containsKey(move)) {
-				for (Chain chain : goban.libertyMap.get(move)) {
-					if (chain.color == color.opposite())
-						suitability += chain.size() / chain.numLiberties;
-				}
+			
+			Eye eye = parent.goban.getEye(move);
+			if (eye != null && !eye.dame && eye.size < 7) {
+				logger.info(eye.toString());
+				suitability *= 2;
 			}
-			*/
 			
 			return suitability;
 		}

@@ -15,6 +15,7 @@ import de.cgawron.go.Goban;
 import de.cgawron.go.Neighborhood;
 import de.cgawron.go.Point;
 import de.cgawron.go.SimpleGoban;
+import de.cgawron.go.montecarlo.AnalysisGoban.Eye;
 
 public class AnalysisGoban extends SimpleGoban 
 {
@@ -121,6 +122,8 @@ public class AnalysisGoban extends SimpleGoban
 	public class Eye extends Cluster implements Comparable<Eye> 
 	{
 	
+		public boolean dame;
+
 		public Eye() 
 		{
 			super(lastEyeId++, BoardType.EMPTY);
@@ -232,13 +235,13 @@ public class AnalysisGoban extends SimpleGoban
 		Queue<Point> queue = new LinkedList<Point>();
 		queue.add(point);
 		
-		visited++;
+		//visited++;
 		//logger.info("addEye: visited=" + visited);
 		while (!queue.isEmpty()) {
 			Point q = queue.poll();
 			eyeMap[q.getX()*size + q.getY()] = eye.id;
 			eye.size++;
-			setVisited(q, visited);
+			//setVisited(q, visited);
 			for (Point p : new Neighborhood(this, q)) {
 				if (getStone(p) == BoardType.EMPTY) {
 					if (eyeMap[p.getX()*size + p.getY()] != eye.id) {
@@ -325,12 +328,19 @@ public class AnalysisGoban extends SimpleGoban
 		return count;
 	}
 
-	public Chain getChain(Point move) {
-		int id = chainMap[move.getX()*size + move.getY()];
+	public Chain getChain(Point p) {
+		int id = chainMap[p.getX()*size + p.getY()];
 		if (id < 0) return null;
 		else return chains[id];
 	}
-
+	
+	public Eye getEye(Point p) 
+	{
+		int id = eyeMap[p.getX()*size + p.getY()];
+		if (id < 0) return null;
+		else return eyes[id];
+	}
+	
 	public Vector<Point> getRemoved() 
 	{
 		return removed;
@@ -368,6 +378,7 @@ public class AnalysisGoban extends SimpleGoban
 			logger.info("adjacency: " + adj);
 		}
 		*/
+
 	}
 	
 	public boolean isCapture(Point p, BoardType movingColor) 
