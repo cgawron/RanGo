@@ -267,7 +267,7 @@ public class Point implements Comparable<Point>
 				p.y++;
 			}
 
-			return p;
+			return new Point(p);
 		}
 
 		public void remove()

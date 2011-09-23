@@ -54,8 +54,8 @@ public class SuitabilityTest {
 	@Test
 	public void testSuitability() 
 	{
-		Evaluator.AnalysisNode parent = new Evaluator.AnalysisNode(goban, movingColor);
-		Evaluator.AnalysisNode node;
+		AnalysisNode parent = new AnalysisNode(goban, movingColor);
+		AnalysisNode node;
 		int size = goban.getBoardSize();
 		//double[][] suitability = new double[size][size];
 		StringBuffer sb = new StringBuffer();
@@ -63,7 +63,7 @@ public class SuitabilityTest {
 			sb.append("\n");
 			for (int j=0; j<size; j++) {
 				node = parent.createChild(new Point(i, j));
-				sb.append(String.format("%4.1f ", node.calculateSuitability()));
+				sb.append(String.format("%4.1f ", node.calculateStaticSuitability()));
 			}
 		}
 		logger.info("suitability: " + movingColor + "\n" + goban + sb.toString());

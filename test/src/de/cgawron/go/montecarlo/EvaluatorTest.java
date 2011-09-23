@@ -3,54 +3,55 @@
  */
 package de.cgawron.go.montecarlo;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 import java.io.File;
-import java.util.Arrays;
-import java.util.List;
+import java.util.logging.Logger;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
 
 import de.cgawron.go.Goban;
 import de.cgawron.go.Goban.BoardType;
 import de.cgawron.go.sgf.GameTree;
 
 /**
- * Test class for (static) chinese scoring, i.e. assuming all stones are alive.
+ * Test class Evaluator.
  * @author Christian Gawron
  */
-@RunWith(Parameterized.class)
-public class EvaluatorTest {
-	@Parameters
-    public static List<Object[]> data() {
-            return Arrays.asList(new Object[][] { 
-        			{ "lifeAndDeath1.sgf", BoardType.BLACK }, 
-//        			{ "suitability1.sgf", BoardType.BLACK }, 
-           });
-    }
+public class EvaluatorTest 
+{
+	private static Logger logger = Logger.getLogger(EvaluatorTest.class.getName());
     
     private Goban goban;
     private BoardType movingColor;
     private double expectedScore;
     private File baseDir = new File("test/sgf");
     
-    public EvaluatorTest(String inputSGF, BoardType movingColor) throws Exception {
-    	this.movingColor = movingColor;
-    	File inputFile = new File(baseDir, inputSGF);
+    public EvaluatorTest() throws Exception {
+    	this.movingColor = BoardType.BLACK;
+    	File inputFile = new File(baseDir, "lifeAndDeath1.sgf");
     	GameTree gameTree = new GameTree(inputFile);
     	goban = gameTree.getLeafs().get(0).getGoban();
     }
     
-	/**
-	 * Test method for {@link de.cgawron.go.montecarlo.Evaluator#chineseScore(de.cgawron.go.Goban, de.cgawron.go.Goban.BoardType)}.
-	 */
+
 	@Test
-	public void testEvaluateOne() {
-		double score = Evaluator.evaluate(goban, movingColor, 6.5);
-		assertEquals("Testing expected score", expectedScore, score, 0.2);
+	public void testCreateNode() {
+		Evaluator evaluator = new Evaluator();
+		AnalysisNode root = new AnalysisNode(goban, movingColor);
+		evaluator.createNode(root);
+		//logger.info("root.children=" + root.children);
+		assertEquals("Number of children", 27, root.children.size());
+		assertEquals("Tree size", 1, evaluator.workingTree.size());
+		AnalysisNode node = root.selectRandomUCTMove();
+		evaluator.createNode(node);
+		assertEquals("Tree size", 2, evaluator.workingTree.size());
 	}
 
+	@Test
+	public void testEvaluateUCT() {
+		Evaluator evaluator = new Evaluator();
+		double score = evaluator.evaluate(goban, movingColor, 15);
+		assertEquals("Testing expected score", expectedScore, score, 0.2);
+	}
 }

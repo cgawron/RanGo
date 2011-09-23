@@ -58,8 +58,8 @@ public class LibertyTest {
 	@Test
 	public void testLiberties() 
 	{
-		Evaluator.AnalysisNode parent = new Evaluator.AnalysisNode(goban, BoardType.BLACK);
-		Evaluator.AnalysisNode node;
+		AnalysisNode parent = new AnalysisNode(goban, BoardType.BLACK);
+		AnalysisNode node;
 		// logger.info(parent.toString());
 		node = parent.createChild(move);
 		// logger.info(node.toString());
