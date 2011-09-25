@@ -38,7 +38,7 @@ public class ScoreTest {
     	this.expectedScore = expectedScore;
     	File inputFile = new File(baseDir, inputSGF);
     	GameTree gameTree = new GameTree(inputFile);
-    	goban = new AnalysisGoban(gameTree.getLeafs().get(0).getGoban());
+    	goban = new AnalysisGoban(gameTree.getLeafs().get(0).getGoban(), BoardType.BLACK);
     }
     
 	/**

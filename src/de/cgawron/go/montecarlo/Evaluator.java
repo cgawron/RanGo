@@ -15,25 +15,19 @@
  */
 package de.cgawron.go.montecarlo;
 
-import java.util.LinkedList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
-import java.util.TreeMap;
 import java.util.Vector;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import de.cgawron.go.Goban;
 import de.cgawron.go.Goban.BoardType;
-import de.cgawron.go.GobanMap;
 import de.cgawron.go.Point;
-import de.cgawron.go.montecarlo.AnalysisGoban.Eye;
 
 /** 
  * Evaluate a Node using Monte Carlo simulation
@@ -53,319 +47,36 @@ public class Evaluator
 
 	public static class RandomSimulator implements Callable<AnalysisResult>
 	{
-		private final AnalysisNode root;
+		private final AnalysisNode node;
 		private final double[][] territory;
 
 		public RandomSimulator(AnalysisNode root, double[][] territory)
 		{
-			this.root = root;
+			this.node = root;
 			this.territory = territory;
 		}
 		
 		@Override
 		public final AnalysisResult call() throws Exception {
-			return root.evaluateRandomSequence(territory);
+			return node.evaluate(territory);
 		}
 	}
 
-	static class AnalysisNode implements Comparable<AnalysisNode>
-	{
-		int boardSize;
-		AnalysisGoban goban;
-		double komi;
-		Point move;
-		int moveNo;
-		BoardType movingColor;
-		AnalysisNode parent;
-		double suitability;
-		Vector<Integer> hashCodes;
-		Map<Point, Miai> miaiMap;
-
-		double wins;
-		double score;
-		double score2;
-		double depth;
-
-		int blackAtari = -1;
-		int whiteAtari = -1;
-		
-		public AnalysisNode(AnalysisNode analysisNode) 
-		{
-			this.parent = analysisNode;
-			this.hashCodes = analysisNode.hashCodes;
-			this.boardSize = analysisNode.boardSize;
-			this.goban = analysisNode.goban.clone();
-			this.moveNo = analysisNode.moveNo;
-			this.komi = analysisNode.komi;
-			this.miaiMap = analysisNode.miaiMap;
-		}
-		
-		public AnalysisNode(Goban goban, BoardType movingColor)
-		{
-			this(goban, movingColor, 6.5);
-		}
-		
-		public AnalysisNode(Goban goban, BoardType movingColor, double komi) 
-		{
-			this.hashCodes = new Vector<Integer>(100, 100);
-			this.hashCodes.setSize(1);
-			this.hashCodes.set(0, goban.hashCode());
-			this.goban = new AnalysisGoban(goban);
-			this.boardSize = goban.getBoardSize();
-			this.komi = komi;
-			this.miaiMap = new GobanMap<Miai>(this.boardSize);
-			this.movingColor = movingColor;
-			this.moveNo = 0;
-			
-			initializeMiai();
-		}
-		
-		/** Evaluates the score of a Goban */
-		public void evaluateRandomly(ExecutorService executor, double[][] territory)
-		{
-			AnalysisNode root = this;
-			AnalysisResult result;
-			int boardSize = goban.getBoardSize();
-			
-			Queue<Future<AnalysisResult>> workQueue = new LinkedList<Future<AnalysisResult>>();
-			for (int i=0; i<NUM_SIMULATIONS; i++) {
-				RandomSimulator simulator = new RandomSimulator(root, territory);
-				workQueue.add(executor.submit(simulator));
-			}
-			
-			Future<AnalysisResult> future;
-			while (workQueue.size() > 0)
-			{
-				try {
-					future = workQueue.peek();
-					if (!future.isDone()) {
-						Thread.sleep(500);
-						continue;
-					}
-					else
-					{
-						result = future.get();
-						workQueue.remove(future);
-						if (result == null) continue;
-						if (movingColor == BoardType.BLACK)
-							result.score -= komi;
-						else
-							result.score += komi;
-						
-						if (result.score < 0)
-							wins += 1;
-						score -= result.score;
-						score2 += result.score*result.score;
-						depth += result.depth;
-					}
-				}
-				catch (Exception ex) {
-					logger.log(Level.WARNING, "evaluate: ", ex);
-				}
-			}
-			
-			score2 = Math.sqrt((score2 - score*score/NUM_SIMULATIONS) / (NUM_SIMULATIONS - 1));
-			score /= NUM_SIMULATIONS;
-			depth /= NUM_SIMULATIONS;
-			wins /= NUM_SIMULATIONS;
-			
-			logger.info("evaluateRandomly: " + move + " " + wins + " " + score);
-		}
-
-			
-		public AnalysisResult evaluateRandomSequence(double[][] territory)
-		{
-			AnalysisResult result = new AnalysisResult(territory);
-			AnalysisNode currentNode = this; 
-			
-			while (true) {
-				currentNode = selectRandomMove(currentNode);
-				currentNode.parent.parent = null;
-				result.depth++;
-				// logger.info("evaluate: " + currentNode);
-
-				if (currentNode.isPass() && currentNode.parent.isPass()) {
-					break;
-				}
-				
-				if (currentNode.moveNo > MAX_MOVES) {
-					logger.severe("exiting after " + MAX_MOVES + " moves: " + this);
-					return null;
-				}
-			} 
-			result.score = chineseScore(currentNode, this.movingColor, result.territory);
-			// logger.info("score: " + score + "\n" + currentNode);
-			return result;
-		}
-
-		private void initializeMiai() 
-		{
-			updateMiai();
-		}
-
-		private void updateMiai() 
-		{
-			// TODO Look for miai pairs and add them.	
-		}
-
-		public void addMiai(Miai miai)
-		{
-			miaiMap.put(miai.p1, miai);
-			miaiMap.put(miai.p2, miai);
-		}
-		
-		private AnalysisNode createChild() 
-		{
-			AnalysisNode child = new AnalysisNode(this);
-			child.movingColor = movingColor.opposite();
-			child.moveNo = moveNo + 1;
-			this.parent = null;
-			return child;
-		}
-		
-		public AnalysisNode createChild(Point p) 
-		{
-			AnalysisNode child = createChild();
-			child.move = p;
-			child.goban.move(p, movingColor);
-			if (child.moveNo >= child.hashCodes.size()) child.hashCodes.setSize(child.moveNo + 1);
-			child.hashCodes.set(child.moveNo, child.goban.hashCode());
-
-			updateMiai();
-			child.suitability = child.calculateSuitability();
-			//logger.info("createChild: \n" + child);
-			return child;
-		}
-		
-		/**
-		 * Calculate the suitability of a move. 
-		 * The suitability will be used as a probability when choosing a move.
-		 * @return the suitability of this @code{AnalysisNode}
-		 */
-		double calculateSuitability() 
-		{
-			double suitability = 1;
-			BoardType color = goban.getStone(move);
-			
-			// Only play on empty fields
-			if (parent.goban.getStone(move) != BoardType.EMPTY) return 0;
-			
-			// Don't play Suicide
-			if (goban.getStone(move) == BoardType.EMPTY) return 0;
-			
-
-			// Obey Ko rule 
-			int hashCode = goban.hashCode();
-			for (int i=moveNo-1; i>0; i--) {
-				if (hashCodes.get(i) == hashCode) return 0;
-			}
-					
-			Vector<Point> removed = goban.getRemoved();
-			int saved = getSavedStones();
-
-			// don't fill an eye
-			if (parent.goban.isOneSpaceEye(move) && removed.size() == 0 && saved <= 0) return 0;
-			
-			// Capture is good
-			if (removed.size() > 0) {
-				//logger.info("Capturing: " + move + " captures " + removed.size());
-				suitability += 2 * removed.size();
-			}
-						
-			// Saving stones is good
-			if (saved > 0) {
-				//logger.info("Saving: " + move + " saves " + saved);
-				suitability += 2*saved;
-			}
-
-			Miai miai = null;
-			if (parent.move != null) miai = miaiMap.get(parent.move);
-			if (miai != null && miai.other(parent.move).equals(move)) {
-				//logger.info("miai found!!" + miai);
-				suitability += miai.value;
-			}
-						
-			// Self-Atari is discouraged
-			if (saved < 0) 
-				suitability *= -1.0 / saved;
-			
-			
-			Eye eye = parent.goban.getEye(move);
-			if (eye.size < 7) {
-				logger.info("suitability: " + move + ", eyeye=" + eye);
-				suitability *= 2;
-			}
-			
-			return suitability;
-		}
-
-		private int getSavedStones() 
-		{
-			int parentAtari = parent.getAtariCount(parent.movingColor);		
-			int myAtari = getAtariCount(parent.movingColor);
-			
-			// logger.info("getSavedStones: " + move + ": " + parentAtari + " - " + myAtari);
-			return parentAtari - myAtari;
-		}
-
-		int getAtariCount(BoardType movingColor) 
-		{
-			switch (movingColor) {
-			case BLACK:
-				if (blackAtari < 0) {
-					blackAtari = goban.getAtariCount(movingColor);
-					//logger.info("getAtariCount(BLACK): " + this);
-				}
-				return blackAtari;
-
-			case WHITE:
-				if (whiteAtari < 0) {
-					whiteAtari = goban.getAtariCount(movingColor);
-					//logger.info("getAtariCount(WHITE): " + this);
-				}
-				return whiteAtari;
-				
-			case EMPTY:
-			default:	
-				return 0;	
-			}
-		}
-
-		public AnalysisNode createPassNode() 
-		{
-			//logger.info("creating pass move");
-			AnalysisNode child = createChild();
-			child.move = null;
-			return child;
-		}
-		
-		public boolean isPass() 
-		{
-			return move == null;
-		}
-
-		@Override
-		public int compareTo(AnalysisNode node) {
-			return move.compareTo(node.move);
-		}
-
-		@Override
-		public String toString() {
-			return "AnalysisNode [move=" + move
-					+ ", moveNo=" + moveNo + ", wins=" + wins + ", movingColor=" + movingColor
-					+ ", blackAtari=" + blackAtari + ", whiteAatari=" + whiteAtari
-					+ ", suitability=" + suitability + "\n" + goban + "]";
-		}
-	}
-
-	private static Logger logger = Logger.getLogger(Evaluator.class.getName());
+	static Logger logger = Logger.getLogger(Evaluator.class.getName());
 
 	int numNodes = 0;
+	Map<AnalysisGoban, AnalysisNode> workingTree;
 
-	final static int NUM_SIMULATIONS = 50;
+	private int simulation;
+	
+	final static int NUM_SIMULATIONS = 2000;
 	final static int MAX_MOVES = 200;
 
-
+	public Evaluator()
+	{
+		workingTree = new HashMap<AnalysisGoban, AnalysisNode>();
+	}
+	
 	public static int chineseScore(AnalysisNode node, Goban.BoardType movingColor, double[][] territory)
 	{
 		return chineseScore(node.goban, movingColor, territory);
@@ -391,7 +102,7 @@ public class Evaluator
 		AnalysisNode root = new AnalysisNode(goban, movingColor, komi);
 		ExecutorService executor = Executors.newFixedThreadPool(4);
 		double[][] territory = null; //new double[boardSize][boardSize];
-		root.evaluateRandomly(executor, territory);
+		root.evaluateRandomly(executor, NUM_SIMULATIONS, territory);
 
 		StringBuffer sb = new StringBuffer();
 		if (territory != null) {
@@ -404,77 +115,33 @@ public class Evaluator
 		}
 		
 		logger.info(String.format("evaluate: wins=%.1f, score=%.1f +- %.1f, average depth=%.1f\n%s\n%s", 
-				                  root.wins, root.score, root.score2, root.depth, goban, sb.toString()));
+				                  root.value, root.score, root.score2, root.depth, goban, sb.toString()));
 		
 		return root.score;
 	}
 	
 	
-	/** 
-	 * Try to make a (sensible) random move. 
-	 * A move is considered sensible if it is <ul>
-	 * <li> legal,
-	 * <li> does not fill an own eye.
-	 * </ul>
-	 */
-	public static AnalysisNode selectRandomMove(AnalysisNode parent)
-	{
-		double totalSuitability = 0;
-		Map<AnalysisNode, Double> map = new TreeMap<AnalysisNode, Double>();
-		int size = parent.boardSize;
-		for (int i = 0; i < size; i++) {
-			for (int j = 0; j < size; j++) {
-				if (parent.goban.getStone(i, j) != BoardType.EMPTY) continue;
-				Point p = new Point(i, j);
-				AnalysisNode node = parent.createChild(p);
-				// numNodes++;
-				if (node.suitability > 0) {
-					totalSuitability += node.suitability;
-					map.put(node, node.suitability);
-				}
-			}
-		}
-		
-		double random = Math.random();
-		Set<Map.Entry<AnalysisNode, Double>> entries = map.entrySet();
-		//logger.info("selectRandomMove: " + parent.movingColor + " " + totalSuitability + " " + random);
-		for (Map.Entry<AnalysisNode, Double> entry : entries) {
-			random -= entry.getValue() / totalSuitability;
-			if (random < 0) {
-				AnalysisNode node = entry.getKey();
-				//if (node.moveNo >= node.hashCodes.size()) node.hashCodes.setSize(node.moveNo + 1);
-				//node.hashCodes.set(node.moveNo, node.goban.hashCode());
-				return node;
-			}
-		}
-		AnalysisNode node = parent.createPassNode();
-		//if (node.moveNo >= node.hashCodes.size()) node.hashCodes.setSize(node.moveNo + 1);
-		//node.hashCodes.set(node.moveNo, node.goban.hashCode());
-		return node;
-	}
 
 	/** Evaluates the score of a Goban */
-	public static double evaluate(Goban goban, Goban.BoardType movingColor, double komi)
+	public double evaluate(Goban goban, Goban.BoardType movingColor, double komi)
 	{
-		ExecutorService executor = Executors.newFixedThreadPool(4);
+		//ExecutorService executor = Executors.newFixedThreadPool(2);
 		
 		int boardSize = goban.getBoardSize();
 		AnalysisNode root = new AnalysisNode(goban, movingColor, komi);
+		createNode(root);
         double[][] territory = null; //new double[boardSize][boardSize];
-        
-        double[][] wins = new double[boardSize][boardSize]; 
-        for (Point p : Point.all(boardSize)) {
-        	AnalysisNode node = root.createChild(p);
-        	if (node.suitability > 0) {
-        		node.evaluateRandomly(executor, null);
-        		wins[p.getX()][p.getY()] = node.wins;
-        		logger.info("evaluate: " + node);
-        	}
+       
+        for (simulation=0; simulation<NUM_SIMULATIONS; simulation++) {
+        	evaluateSequenceByUCT(root, territory);
+        	logger.info("simulation " + simulation + ": value=" + root.value + ", tree size: " + workingTree.size());
         }
-        	
-	
+
+       
 		StringBuffer sb = new StringBuffer();
-		for (int i=0; i<boardSize; i++) {
+		/*
+		for (AnalysisGoban goban : root.children)
+		{
 			sb.append("\n");
 			for (int j=0; j<boardSize; j++) {
 				if (wins[i][j] > 0)
@@ -494,10 +161,70 @@ public class Evaluator
 				}
 			}
 		}
+		*/
 		
-		logger.info(String.format("evaluate: wins=%.1f, score=%.1f +- %.1f, average depth=%.1f\n%s\n%s", 
-				                  root.wins, root.score, root.score2, root.depth, goban, sb.toString()));
+		logger.info(String.format("evaluate: value=%.1f, score=%.1f +- %.1f, average depth=%.1f\n%s\n%s", 
+				                  root.value, root.score, root.score2, root.depth, goban, sb.toString()));
 		
+		double max = -1;
+		AnalysisNode best = null;
+		for (AnalysisNode node : root.children)
+		{
+			if (node.value > max) {
+				max = node.value;
+				best = node;
+			}
+		}
+		logger.info("best: " + best);
 		return root.score;
+	}
+	
+	public void evaluateSequenceByUCT(AnalysisNode root, double[][]territory)
+	{
+        AnalysisNode[] sequence = new AnalysisNode[MAX_MOVES];
+        sequence[0] = root;
+        
+        int i = 0; 
+        while (sequence[i].children != null)
+        {
+        	sequence[i+1] = sequence[i].selectRandomUCTMove();
+        	i++;
+        	//logger.info("sequence: i=" + i + ": " + sequence[i].move);
+        }
+        createNode(sequence[i]);
+
+        sequence[i].evaluateByMC(sequence, i, territory);
+        //logger.info("simulation " + simulation + ": UCT sequence end: i=" + i + ": " + sequence[i]);
+        //logger.info("simulation " + simulation + ": root: " + sequence[0]);
+        updateValues(sequence, i, 1-sequence[i].value, -sequence[i].score);
+        
+  	}
+
+	protected void createNode(AnalysisNode node) 
+	{
+	    node.children = new HashSet<AnalysisNode>();
+	    workingTree.put(node.goban, node);
+ 
+        for (Point p : Point.all(node.boardSize))
+        {
+        	AnalysisNode child = node.createChild(p);
+        	double value = child.calculateStaticSuitability();
+        	if (value > 0) {
+        		child.value = value;
+        		node.children.add(child);
+        	}
+        }
+	}
+
+	protected void updateValues(AnalysisNode[] sequence, int n, double value, double score) 
+	{		
+		for (int i=n-1; i>=0; i--)
+		{
+			sequence[i].value = (sequence[i].visits*sequence[i].value + value) / (sequence[i].visits+1);
+			sequence[i].score = (sequence[i].visits*sequence[i].score + score) / (sequence[i].visits+1);
+			sequence[i].visits++;
+			value = 1 - value;
+			score = -score;
+		}
 	}
 }

@@ -29,7 +29,7 @@ import de.cgawron.go.sgf.GameTree;
 public class AtariTest {
 	private static Logger logger = Logger.getLogger(AtariTest.class.getName());
 	
-    private Evaluator.AnalysisNode node;
+    private AnalysisNode node;
     private static Goban goban;
     private BoardType movingColor;
     private List<Point> expectedChains;
@@ -53,7 +53,7 @@ public class AtariTest {
     @Before
     public void initialize() 
     {
-		this.node = new Evaluator.AnalysisNode(goban, movingColor);  	
+		this.node = new AnalysisNode(goban, movingColor);  	
     }
     
 	@Test

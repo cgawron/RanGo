@@ -53,8 +53,8 @@ public class EyeTest {
 	@Test
 	public void testEyes() 
 	{
-		Evaluator.AnalysisNode parent = new Evaluator.AnalysisNode(goban, movingColor);
-		Evaluator.AnalysisNode node = parent;
+		AnalysisNode parent = new AnalysisNode(goban, movingColor);
+		AnalysisNode node = parent;
 		int size = goban.getBoardSize();
 		int maxId = 0;
 		
