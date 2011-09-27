@@ -51,7 +51,7 @@ public final class Neighborhood implements Iterable<Point>
 		}
 
 	
-		private void calcNext()
+		private final void calcNext()
 		{
 			nextPoint = null;
 			while (nextPoint == null && direction < 4) {

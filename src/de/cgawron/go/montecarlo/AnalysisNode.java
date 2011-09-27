@@ -384,10 +384,11 @@ class AnalysisNode implements Comparable<AnalysisNode>
 			//logger.info("child=" + child);
 			double value;
 			if (child.visits == 0) 
-				value = 1000 * child.value;
-			else
-				value = 1 - child.value/child.visits + Math.sqrt(2*Math.log(visits)/child.visits);
-
+				value = 1000 + child.value;
+			else {
+				value = 1 + child.value + Math.sqrt(2*Math.log(visits)/child.visits);
+			}
+			
 			if (value > max) {
 				best = child;
 				max = value;
@@ -401,11 +402,21 @@ class AnalysisNode implements Comparable<AnalysisNode>
 	public String toString() {
 		return "AnalysisNode [move=" + move
 				+ ", moveNo=" + moveNo + ", value=" + value 
-				+ ", score=" + score
+				+ ", score=" + getScore()
+			    + ", variance=" + getVariance()
 				+ ", movingColor=" + goban.movingColor
 				+ ", visits=" + visits
 				+ ", blackAtari=" + blackAtari + ", whiteAatari=" + whiteAtari
 				+ ", suitability=" + suitability + "\n" + goban + "]";
+	}
+	
+	public double getScore()
+	{
+		return score / visits;
+	}
+
+	public double getVariance() {
+		return Math.sqrt((score2 - score*score/visits) / (visits - 1));
 	}
 
 	private void updateMiai() 

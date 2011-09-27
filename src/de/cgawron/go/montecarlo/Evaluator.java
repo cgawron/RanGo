@@ -15,6 +15,7 @@
  */
 package de.cgawron.go.montecarlo;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -27,6 +28,7 @@ import java.util.logging.Logger;
 
 import de.cgawron.go.Goban;
 import de.cgawron.go.Goban.BoardType;
+import de.cgawron.go.sgf.GameTree;
 import de.cgawron.go.Point;
 
 /** 
@@ -55,11 +57,13 @@ public class Evaluator
 			this.node = root;
 			this.territory = territory;
 		}
-		
+
 		@Override
 		public final AnalysisResult call() throws Exception {
-			return node.evaluate(territory);
+			//return node.evaluate(territory);
+			return null;
 		}
+
 	}
 
 	static Logger logger = Logger.getLogger(Evaluator.class.getName());
@@ -69,7 +73,8 @@ public class Evaluator
 
 	private int simulation;
 	
-	final static int NUM_SIMULATIONS = 2000;
+
+	final static int NUM_SIMULATIONS = 1000;
 	final static int MAX_MOVES = 200;
 
 	public Evaluator()
@@ -170,11 +175,13 @@ public class Evaluator
 		AnalysisNode best = null;
 		for (AnalysisNode node : root.children)
 		{
+			logger.info("move: " + node.move + ", value=" + node.value + ", visits=" + node.visits);
 			if (node.value > max) {
 				max = node.value;
 				best = node;
 			}
 		}
+
 		logger.info("best: " + best);
 		return root.score;
 	}
@@ -193,6 +200,7 @@ public class Evaluator
         }
         createNode(sequence[i]);
 
+
         sequence[i].evaluateByMC(sequence, i, territory);
         //logger.info("simulation " + simulation + ": UCT sequence end: i=" + i + ": " + sequence[i]);
         //logger.info("simulation " + simulation + ": root: " + sequence[0]);
@@ -210,8 +218,11 @@ public class Evaluator
         	AnalysisNode child = node.createChild(p);
         	double value = child.calculateStaticSuitability();
         	if (value > 0) {
-        		child.value = value;
+        		if (workingTree.containsKey(child.goban)) {
+        			child = workingTree.get(child.goban);
+        		}
         		node.children.add(child);
+        		child.value = value;
         	}
         }
 	}
@@ -221,10 +232,21 @@ public class Evaluator
 		for (int i=n-1; i>=0; i--)
 		{
 			sequence[i].value = (sequence[i].visits*sequence[i].value + value) / (sequence[i].visits+1);
-			sequence[i].score = (sequence[i].visits*sequence[i].score + score) / (sequence[i].visits+1);
+			sequence[i].score += score;
+			sequence[i].score2 += score*score;
 			sequence[i].visits++;
 			value = 1 - value;
 			score = -score;
 		}
+	}
+	
+	public static void main(String[] args) throws Exception
+	{
+    	File inputFile = new File("test/sgf", "lifeAndDeath1.sgf");
+    	GameTree gameTree = new GameTree(inputFile);
+    	Goban goban = gameTree.getLeafs().get(0).getGoban();
+		Evaluator evaluator = new Evaluator();
+		double score = evaluator.evaluate(goban, BoardType.BLACK, 15);
+		logger.info("score=" + score);
 	}
 }

@@ -138,7 +138,7 @@ public class AnalysisGoban extends SimpleGoban
 		}
 	}
 
-	private static final int INITIAL_CHAIN_SIZE = 10;
+	private static final int INITIAL_CHAIN_SIZE = 32;
 	
 	public static Logger logger = Logger.getLogger(AnalysisGoban.class.getName());
 	int lastChainId;
