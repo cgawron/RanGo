@@ -29,7 +29,7 @@ public class EvaluatorTest
     
     public EvaluatorTest() throws Exception {
     	this.movingColor = BoardType.BLACK;
-    	File inputFile = new File(baseDir, "lifeAndDeath1.sgf");
+    	File inputFile = new File(baseDir, "evaluate1.sgf");
     	GameTree gameTree = new GameTree(inputFile);
     	goban = gameTree.getLeafs().get(0).getGoban();
     	//expectedScore = 26;
@@ -44,7 +44,7 @@ public class EvaluatorTest
 		//logger.info("root.children=" + root.children);
 		assertEquals("Number of children", 27, root.children.size());
 		assertEquals("Tree size", 1, evaluator.workingTree.size());
-		AnalysisNode node = root.selectRandomUCTMove();
+		AnalysisNode node = null;//root.selectRandomUCTMove();
 		evaluator.createNode(node);
 		assertEquals("Tree size", 2, evaluator.workingTree.size());
 	}
@@ -52,7 +52,15 @@ public class EvaluatorTest
 	@Test
 	public void testEvaluateUCT() {
 		Evaluator evaluator = new Evaluator();
-		double score = evaluator.evaluate(goban, movingColor, 15);
+		double score = evaluator.evaluate(goban, movingColor, 5);
+		assertEquals("Testing expected score", expectedScore, score, 2);
+	}
+	
+	@Test
+	public void testEvaluateUCT1() {
+		Evaluator evaluator = new Evaluator();
+		goban = new AnalysisGoban(7);
+		double score = evaluator.evaluate(goban, movingColor, 4);
 		assertEquals("Testing expected score", expectedScore, score, 2);
 	}
 }

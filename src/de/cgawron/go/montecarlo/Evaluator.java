@@ -16,14 +16,21 @@
 package de.cgawron.go.montecarlo;
 
 import java.io.File;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.Map;
+import java.util.Queue;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.Vector;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import de.cgawron.go.Goban;
@@ -47,7 +54,7 @@ public class Evaluator
 		}
 	}
 
-	public static class RandomSimulator implements Callable<AnalysisResult>
+	public class RandomSimulator implements Runnable
 	{
 		private final AnalysisNode node;
 		private final double[][] territory;
@@ -59,9 +66,9 @@ public class Evaluator
 		}
 
 		@Override
-		public final AnalysisResult call() throws Exception {
-			//return node.evaluate(territory);
-			return null;
+		public void run() 
+		{
+			evaluateSequenceByUCT(node, territory);
 		}
 
 	}
@@ -69,17 +76,18 @@ public class Evaluator
 	static Logger logger = Logger.getLogger(Evaluator.class.getName());
 
 	int numNodes = 0;
-	Map<AnalysisGoban, AnalysisNode> workingTree;
+	Map<AnalysisNode, AnalysisNode> workingTree;
 
 	private int simulation;
-	
+	private ExecutorService executor;
 
-	final static int NUM_SIMULATIONS = 1000;
+	final static int NUM_SIMULATIONS = 500;
 	final static int MAX_MOVES = 200;
 
 	public Evaluator()
 	{
-		workingTree = new HashMap<AnalysisGoban, AnalysisNode>();
+		executor = Executors.newFixedThreadPool(1);
+		workingTree = new HashMap<AnalysisNode, AnalysisNode>();
 	}
 	
 	public static int chineseScore(AnalysisNode node, Goban.BoardType movingColor, double[][] territory)
@@ -101,48 +109,54 @@ public class Evaluator
 	}
 
 	/** Evaluates the score of a Goban */
-	public static double evaluateOne(Goban goban, Goban.BoardType movingColor, double komi)
-	{
-		int boardSize = goban.getBoardSize();
-		AnalysisNode root = new AnalysisNode(goban, movingColor, komi);
-		ExecutorService executor = Executors.newFixedThreadPool(4);
-		double[][] territory = null; //new double[boardSize][boardSize];
-		root.evaluateRandomly(executor, NUM_SIMULATIONS, territory);
-
-		StringBuffer sb = new StringBuffer();
-		if (territory != null) {
-			for (int i=0; i<boardSize; i++) {
-				sb.append("\n");
-				for (int j=0; j<boardSize; j++) {
-					sb.append(String.format("%4.1f ", territory[i][j] / NUM_SIMULATIONS));
-				}
-			}
-		}
-		
-		logger.info(String.format("evaluate: wins=%.1f, score=%.1f +- %.1f, average depth=%.1f\n%s\n%s", 
-				                  root.value, root.score, root.score2, root.depth, goban, sb.toString()));
-		
-		return root.score;
-	}
-	
-	
-
-	/** Evaluates the score of a Goban */
 	public double evaluate(Goban goban, Goban.BoardType movingColor, double komi)
 	{
-		//ExecutorService executor = Executors.newFixedThreadPool(2);
-		
-		int boardSize = goban.getBoardSize();
 		AnalysisNode root = new AnalysisNode(goban, movingColor, komi);
+		return evaluate(root);
+	}
+	
+	/** Evaluates the score of a Goban */
+	public double evaluate(AnalysisNode root)
+	{
+		int boardSize = root.goban.getBoardSize();
 		createNode(root);
         double[][] territory = null; //new double[boardSize][boardSize];
-       
-        for (simulation=0; simulation<NUM_SIMULATIONS; simulation++) {
-        	evaluateSequenceByUCT(root, territory);
-        	logger.info("simulation " + simulation + ": value=" + root.value + ", tree size: " + workingTree.size());
-        }
 
-       
+        if (true) {
+		Queue<Future<?>> workQueue = new LinkedList<Future<?>>();
+		
+        for (simulation=0; simulation<NUM_SIMULATIONS; simulation++) {
+        	Runnable simulation = new RandomSimulator(root, territory);
+        	workQueue.add(executor.submit(simulation));
+        	//evaluateSequenceByUCT(root, territory);
+        	//logger.info("simulation " + simulation + ": value=" + root.value + ", tree size: " + workingTree.size());
+        }
+		
+		Future<?> future;
+		while (workQueue.size() > 0)
+		{
+			try {
+				future = workQueue.peek();
+				if (!future.isDone()) {
+					logger.info("still " + workQueue.size() + " simulations outstanding, value=" + root.value);
+					Thread.sleep(500);
+					continue;
+				}
+				else
+				{
+					workQueue.remove(future);
+				}
+			}
+			catch (Exception ex) {
+				Evaluator.logger.log(Level.WARNING, "evaluate: ", ex);
+			}
+		}
+        }
+        else
+        {	
+        	for (int i=0; i<NUM_SIMULATIONS; i++)
+        		evaluateSequenceByUCT(root, territory);
+        }
 		StringBuffer sb = new StringBuffer();
 		/*
 		for (AnalysisGoban goban : root.children)
@@ -168,8 +182,9 @@ public class Evaluator
 		}
 		*/
 		
+		dumpTree(logger, root, 3, 30);
 		logger.info(String.format("evaluate: value=%.1f, score=%.1f +- %.1f, average depth=%.1f\n%s\n%s", 
-				                  root.value, root.score, root.score2, root.depth, goban, sb.toString()));
+				                  root.value, root.score, root.score2, root.depth, root.goban, sb.toString()));
 		
 		double max = -1;
 		AnalysisNode best = null;
@@ -183,9 +198,36 @@ public class Evaluator
 		}
 
 		logger.info("best: " + best);
-		return root.score;
+		return root.getScore();
 	}
 	
+	protected void dumpTree(Logger logger, AnalysisNode root, int depth, int breadth) 
+	{
+		int d=0;
+		Comparator<AnalysisNode> valueComparator = new Comparator<AnalysisNode>() {
+			@Override
+			public int compare(AnalysisNode a, AnalysisNode b) {
+				return -Double.compare(a.value, b.value);
+			}			
+		};
+		SortedSet<AnalysisNode> currentLevel = new TreeSet<AnalysisNode>(valueComparator);
+		SortedSet<AnalysisNode> nextLevel = new TreeSet<AnalysisNode>(valueComparator);
+		
+		currentLevel.add(root);
+		while (d < depth) {
+			int b = 0;
+			for (AnalysisNode n : currentLevel) {
+				logger.info("level=" + d + ", n=" + b + ": " + n);
+				if (n.children != null)
+					nextLevel.addAll(n.children);
+				if (++b >= breadth) break;
+			}
+			d++;
+			currentLevel = nextLevel;
+			nextLevel = new TreeSet<AnalysisNode>(valueComparator);
+		}
+	}
+
 	public void evaluateSequenceByUCT(AnalysisNode root, double[][]territory)
 	{
         AnalysisNode[] sequence = new AnalysisNode[MAX_MOVES];
@@ -194,24 +236,34 @@ public class Evaluator
         int i = 0; 
         while (sequence[i].children != null)
         {
-        	sequence[i+1] = sequence[i].selectRandomUCTMove();
+        	sequence[i+1] = sequence[i].selectRandomUCTMove(sequence, i);
         	i++;
         	//logger.info("sequence: i=" + i + ": " + sequence[i].move);
+        	if (i>1 && sequence[i].move == null && sequence[i-1].move == null) 
+        		break;
         }
         createNode(sequence[i]);
-
-
-        sequence[i].evaluateByMC(sequence, i, territory);
-        //logger.info("simulation " + simulation + ": UCT sequence end: i=" + i + ": " + sequence[i]);
+        
+        if (i>1 && sequence[i].move == null && sequence[i-1].move == null) {
+        	sequence[i].evaluateByScoring(sequence[i], territory);
+        	sequence[i].visits++;
+        	updateValues(sequence, i, 1-sequence[i].value, -sequence[i].score);
+        }
+        else {
+         	sequence[i].evaluateByMC(sequence, i, territory);
+        	updateValues(sequence, i, 1-sequence[i].value, -sequence[i].score);
+        }
+        //logger.info("simulation " + root.visits + ": UCT sequence end: i=" + i + ": " + sequence[i]);
         //logger.info("simulation " + simulation + ": root: " + sequence[0]);
-        updateValues(sequence, i, 1-sequence[i].value, -sequence[i].score);
+        
         
   	}
 
 	protected void createNode(AnalysisNode node) 
 	{
+		if (workingTree.containsKey(node)) return;
 	    node.children = new HashSet<AnalysisNode>();
-	    workingTree.put(node.goban, node);
+	    workingTree.put(node, node);
  
         for (Point p : Point.all(node.boardSize))
         {
@@ -225,6 +277,12 @@ public class Evaluator
         		child.value = value;
         	}
         }
+        AnalysisNode child = node.createPassNode();
+        child.value = 0.1;
+        if (workingTree.containsKey(child.goban)) {
+			child = workingTree.get(child.goban);
+		}
+		node.children.add(child);
 	}
 
 	protected void updateValues(AnalysisNode[] sequence, int n, double value, double score) 

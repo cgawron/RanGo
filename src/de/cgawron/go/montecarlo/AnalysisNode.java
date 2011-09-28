@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.Vector;
 import java.util.Map.Entry;
@@ -24,6 +25,10 @@ import de.cgawron.go.montecarlo.Evaluator.RandomSimulator;
 
 class AnalysisNode implements Comparable<AnalysisNode>
 {
+	private static final int STEEPNESS = 1;
+
+
+
 	static Logger logger = Logger.getLogger(AnalysisNode.class.getName());
 
 	
@@ -147,6 +152,9 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		return suitability;
 	}
 
+	/**
+	 * Compare two AnalysisNode by value.
+	 */
 	@Override
 	public int compareTo(AnalysisNode node) {
 		return move.compareTo(node.move);
@@ -195,15 +203,15 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		return true;
 	}
 	
-	public AnalysisResult evaluateByMC(AnalysisNode[] sequence, int n, double[][] territory)
+	public void evaluateByMC(AnalysisNode[] sequence, int n, double[][] territory)
 	{
-		AnalysisResult result = new AnalysisResult(territory);
 		AnalysisNode currentNode = this; 
+		int depth = 0;
 		
 		int i = n;
 		while (true) {
 			sequence[++i] = currentNode = currentNode.selectRandomMCMove(sequence, i);
-			result.depth++;
+			depth++;
 			// logger.info("evaluate: " + currentNode);
 
 			if (currentNode.isPass() && currentNode.parent.isPass()) {
@@ -214,64 +222,8 @@ class AnalysisNode implements Comparable<AnalysisNode>
 				throw new RuntimeException("no result");
 			}
 		} 
-		result.score = Evaluator.chineseScore(currentNode, goban.movingColor, result.territory);
-		if (goban.movingColor == BoardType.BLACK)
-			result.score -= komi;
-		else
-			result.score += komi;
-		
-		if (result.score < 0)
-			value = 1;
-		else
-			value = 0;
-		score -= result.score;
-		score2 += result.score*result.score;
-		depth += result.depth;
-
-		// logger.info("score=" + score + ", value=" + value);
-		return result;
-	}
-
-	/** Evaluates the score of a Goban */
-	public void evaluateRandomly(ExecutorService executor, int numSimulations, double[][] territory)
-	{
-		AnalysisNode root = this;
-		AnalysisResult result;
-		int boardSize = goban.getBoardSize();
-		
-		Queue<Future<AnalysisResult>> workQueue = new LinkedList<Future<AnalysisResult>>();
-		for (int i=0; i<numSimulations; i++) {
-			RandomSimulator simulator = new RandomSimulator(root, territory);
-			workQueue.add(executor.submit(simulator));
-		}
-		
-		Future<AnalysisResult> future;
-		while (workQueue.size() > 0)
-		{
-			try {
-				future = workQueue.peek();
-				if (!future.isDone()) {
-					Thread.sleep(500);
-					continue;
-				}
-				else
-				{
-					result = future.get();
-					workQueue.remove(future);
-					if (result == null) continue;
-				}
-			}
-			catch (Exception ex) {
-				Evaluator.logger.log(Level.WARNING, "evaluate: ", ex);
-			}
-		}
-		
-		score2 = Math.sqrt((score2 - score*score/Evaluator.NUM_SIMULATIONS) / (Evaluator.NUM_SIMULATIONS - 1));
-		score /= Evaluator.NUM_SIMULATIONS;
-		depth /= Evaluator.NUM_SIMULATIONS;
-		value /= Evaluator.NUM_SIMULATIONS;
-		
-		Evaluator.logger.info("evaluateRandomly: " + move + " " + value + " " + score);
+		evaluateByScoring(currentNode, territory);
+		this.depth += depth;
 	}
 
 	int getAtariCount(BoardType movingColor) 
@@ -297,6 +249,32 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		}
 	}
 
+	public void evaluateByScoring(AnalysisNode leaf, double[][] territory)
+	{
+		double chineseScore = Evaluator.chineseScore(leaf, goban.movingColor, territory);
+		if (goban.movingColor == BoardType.BLACK)
+			chineseScore -= komi;
+		else
+			chineseScore += komi;
+	
+		/* All or nothing ...
+		if (result.score < 0)
+			value = 1;
+		else
+			value = 0;
+		*/
+		
+		// Sigmoid exp(x)/(1+exp(x))
+		double exp = Math.exp(-STEEPNESS*chineseScore);
+		value = exp / (1+exp);
+		
+		score -= chineseScore;
+		score2 += chineseScore*chineseScore;
+
+		//logger.info("score=" + chineseScore + ", value=" + value);
+	}
+	
+	
 	private int getSavedStones() 
 	{
 		int parentAtari = parent.getAtariCount(parent.goban.movingColor);		
@@ -308,7 +286,12 @@ class AnalysisNode implements Comparable<AnalysisNode>
 	
 	@Override
 	public int hashCode() {
-		return goban.hashCode();
+		if (move != null)
+			return goban.hashCode();
+		else if (parent != null) {
+			return 31 * parent.hashCode() + 1;
+		}
+		else return 0;
 	}
 
 	private void initializeMiai() 
@@ -369,7 +352,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		return node;
 	}
 
-	protected AnalysisNode selectRandomUCTMove() 
+	protected AnalysisNode selectRandomUCTMove(AnalysisNode[] sequence, int n) 
 	{
 		int visits = 0;
 		AnalysisNode best = null;
@@ -390,8 +373,16 @@ class AnalysisNode implements Comparable<AnalysisNode>
 			}
 			
 			if (value > max) {
-				best = child;
-				max = value;
+				boolean illegalKo = false;
+				for (int i=n-2; i>=0; i--)
+				{
+					if (sequence[i].goban.equals(child.goban))
+						illegalKo = true;
+				}
+				if (!illegalKo) {
+					best = child;
+					max = value;
+				}
 			}
 		}
 		//logger.info("final max=" + max + ", best=" + best);
@@ -400,12 +391,14 @@ class AnalysisNode implements Comparable<AnalysisNode>
 
 	@Override
 	public String toString() {
-		return "AnalysisNode [move=" + move
+		return "AnalysisNode [id=" + hashCode()
+				+ ", parent=" + (parent != null ? parent.hashCode() : "null")
+				+ "\nmove=" + move
 				+ ", moveNo=" + moveNo + ", value=" + value 
 				+ ", score=" + getScore()
 			    + ", variance=" + getVariance()
 				+ ", movingColor=" + goban.movingColor
-				+ ", visits=" + visits
+				+ "\nvisits=" + visits
 				+ ", blackAtari=" + blackAtari + ", whiteAatari=" + whiteAtari
 				+ ", suitability=" + suitability + "\n" + goban + "]";
 	}
