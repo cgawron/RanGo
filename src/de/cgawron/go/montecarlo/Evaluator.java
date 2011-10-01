@@ -81,7 +81,7 @@ public class Evaluator
 	private int simulation;
 	private ExecutorService executor;
 
-	final static int NUM_SIMULATIONS = 500;
+	final static int NUM_SIMULATIONS = 1000;
 	final static int MAX_MOVES = 200;
 
 	public Evaluator()
@@ -122,8 +122,7 @@ public class Evaluator
 		createNode(root);
         double[][] territory = null; //new double[boardSize][boardSize];
 
-        if (true) {
-		Queue<Future<?>> workQueue = new LinkedList<Future<?>>();
+  		Queue<Future<?>> workQueue = new LinkedList<Future<?>>();
 		
         for (simulation=0; simulation<NUM_SIMULATIONS; simulation++) {
         	Runnable simulation = new RandomSimulator(root, territory);
@@ -151,12 +150,7 @@ public class Evaluator
 				Evaluator.logger.log(Level.WARNING, "evaluate: ", ex);
 			}
 		}
-        }
-        else
-        {	
-        	for (int i=0; i<NUM_SIMULATIONS; i++)
-        		evaluateSequenceByUCT(root, territory);
-        }
+
 		StringBuffer sb = new StringBuffer();
 		/*
 		for (AnalysisGoban goban : root.children)
@@ -186,18 +180,7 @@ public class Evaluator
 		logger.info(String.format("evaluate: value=%.1f, score=%.1f +- %.1f, average depth=%.1f\n%s\n%s", 
 				                  root.value, root.score, root.score2, root.depth, root.goban, sb.toString()));
 		
-		double max = -1;
-		AnalysisNode best = null;
-		for (AnalysisNode node : root.children)
-		{
-			logger.info("move: " + node.move + ", value=" + node.value + ", visits=" + node.visits);
-			if (node.value > max) {
-				max = node.value;
-				best = node;
-			}
-		}
-
-		logger.info("best: " + best);
+		logger.info("best: " + root.getBestChild());
 		return root.getScore();
 	}
 	
@@ -242,59 +225,65 @@ public class Evaluator
         	if (i>1 && sequence[i].move == null && sequence[i-1].move == null) 
         		break;
         }
-        createNode(sequence[i]);
-        
-        if (i>1 && sequence[i].move == null && sequence[i-1].move == null) {
-        	sequence[i].evaluateByScoring(sequence[i], territory);
-        	sequence[i].visits++;
-        	updateValues(sequence, i, 1-sequence[i].value, -sequence[i].score);
-        }
-        else {
-         	sequence[i].evaluateByMC(sequence, i, territory);
-        	updateValues(sequence, i, 1-sequence[i].value, -sequence[i].score);
+         
+        synchronized(this) {
+            createNode(sequence[i]);
+        	if (i>1 && sequence[i].move == null && sequence[i-1].move == null) {
+        		sequence[i].evaluateByScoring(sequence[i], territory);
+        		sequence[i].visits++;
+        		updateValues(sequence, i, 1-sequence[i].value, -sequence[i].score);
+        	}
+        	else {
+        		sequence[i].evaluateByMC(sequence, i, territory);
+        		updateValues(sequence, i, sequence[i].value, sequence[i].score);
+        	}
         }
         //logger.info("simulation " + root.visits + ": UCT sequence end: i=" + i + ": " + sequence[i]);
         //logger.info("simulation " + simulation + ": root: " + sequence[0]);
         
-        
+ 
   	}
 
 	protected void createNode(AnalysisNode node) 
 	{
-		if (workingTree.containsKey(node)) return;
-	    node.children = new HashSet<AnalysisNode>();
-	    workingTree.put(node, node);
- 
-        for (Point p : Point.all(node.boardSize))
-        {
-        	AnalysisNode child = node.createChild(p);
-        	double value = child.calculateStaticSuitability();
-        	if (value > 0) {
-        		if (workingTree.containsKey(child.goban)) {
-        			child = workingTree.get(child.goban);
-        		}
-        		node.children.add(child);
-        		child.value = value;
-        	}
-        }
-        AnalysisNode child = node.createPassNode();
-        child.value = 0.1;
-        if (workingTree.containsKey(child.goban)) {
-			child = workingTree.get(child.goban);
+		synchronized(this) {
+			if (workingTree.containsKey(node)) return;
+			node.children = new HashSet<AnalysisNode>();
+			workingTree.put(node, node);
+
+			for (Point p : Point.all(node.boardSize))
+			{
+				AnalysisNode child = node.createChild(p);
+				double value = child.calculateStaticSuitability();
+				if (value > 0) {
+					if (workingTree.containsKey(child.goban)) {
+						child = workingTree.get(child.goban);
+					}
+					node.children.add(child);
+					child.value = value;
+				}
+			}
+			AnalysisNode child = node.createPassNode();
+			child.value = 0.1;
+			if (workingTree.containsKey(child.goban)) {
+				child = workingTree.get(child.goban);
+			}
+			node.children.add(child);
 		}
-		node.children.add(child);
 	}
 
 	protected void updateValues(AnalysisNode[] sequence, int n, double value, double score) 
 	{		
-		for (int i=n-1; i>=0; i--)
-		{
-			sequence[i].value = (sequence[i].visits*sequence[i].value + value) / (sequence[i].visits+1);
-			sequence[i].score += score;
-			sequence[i].score2 += score*score;
-			sequence[i].visits++;
-			value = 1 - value;
-			score = -score;
+		synchronized (this) {
+			for (int i=n-1; i>=0; i--)
+			{
+				sequence[i].value = (sequence[i].visits*sequence[i].value + value) / (sequence[i].visits+1);
+				sequence[i].score += score;
+				sequence[i].score2 += score*score;
+				sequence[i].visits++;
+				value = 1 - value;
+				score = -score;
+			}
 		}
 	}
 	

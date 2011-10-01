@@ -249,6 +249,21 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		}
 	}
 
+	AnalysisNode getBestChild()
+	{
+		double max = -1;
+		AnalysisNode best = null;
+		for (AnalysisNode node : children)
+		{
+			//logger.info("move: " + node.move + ", value=" + node.value + ", visits=" + node.visits);
+			if (node.value > max) {
+				max = node.value;
+				best = node;
+			}
+		}
+		return best;
+	}
+	
 	public void evaluateByScoring(AnalysisNode leaf, double[][] territory)
 	{
 		double chineseScore = Evaluator.chineseScore(leaf, goban.movingColor, territory);
@@ -265,7 +280,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		*/
 		
 		// Sigmoid exp(x)/(1+exp(x))
-		double exp = Math.exp(-STEEPNESS*chineseScore);
+		double exp = Math.exp(STEEPNESS*chineseScore);
 		value = exp / (1+exp);
 		
 		score -= chineseScore;
