@@ -18,16 +18,16 @@ import de.cgawron.go.sgf.GameTree;
  * Test class Evaluator.
  * @author Christian Gawron
  */
-public class EvaluatorTest 
+public class EvaluatorTest2 
 {
-	private static Logger logger = Logger.getLogger(EvaluatorTest.class.getName());
+	private static Logger logger = Logger.getLogger(EvaluatorTest2.class.getName());
     
     private Goban goban;
     private BoardType movingColor;
     private double expectedScore;
     private File baseDir = new File("test/sgf");
     
-    public EvaluatorTest() throws Exception {
+    public EvaluatorTest2() throws Exception {
     	this.movingColor = BoardType.BLACK;
     	File inputFile = new File(baseDir, "evaluate1.sgf");
     	GameTree gameTree = new GameTree(inputFile);

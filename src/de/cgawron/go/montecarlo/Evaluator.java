@@ -17,6 +17,8 @@ package de.cgawron.go.montecarlo;
 
 import java.io.File;
 import java.util.Comparator;
+import java.util.EventListener;
+import java.util.EventObject;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -24,19 +26,16 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.SortedSet;
 import java.util.TreeSet;
-import java.util.Vector;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import de.cgawron.go.Goban;
 import de.cgawron.go.Goban.BoardType;
-import de.cgawron.go.sgf.GameTree;
 import de.cgawron.go.Point;
+import de.cgawron.go.sgf.GameTree;
 
 /** 
  * Evaluate a Node using Monte Carlo simulation
@@ -44,6 +43,21 @@ import de.cgawron.go.Point;
  */
 public class Evaluator
 {
+	public interface EvaluatorListener extends EventListener
+	{
+		public void stateChanged(EvaluatorEvent event);
+	}
+	
+	public class EvaluatorEvent extends EventObject 
+	{
+		public EvaluatorEvent() {
+			super(Evaluator.this);
+		}
+
+		private static final long serialVersionUID = 1L;
+		
+	}
+	
 	public static class AnalysisResult {
 		public int score;
 		public int depth;

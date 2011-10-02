@@ -1,14 +1,17 @@
 /*
+ * Copyright (C) 2011 Christian Gawron
  *
- * $Id: SVGGoban.java 15 2003-03-15 23:25:52Z cgawron $
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * © 2001 Christian Gawron. All rights reserved.
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package de.cgawron.go.render.svg;
@@ -31,12 +34,19 @@ import org.apache.batik.svggen.SVGGeneratorContext;
 import org.w3c.dom.DOMImplementation;
 import org.w3c.dom.Document;
 
+import de.cgawron.go.Goban;
+import de.cgawron.go.Goban.BoardType;
+import de.cgawron.go.render.GobanRenderer;
+import de.cgawron.go.render.SimpleGobanRenderer;
+import de.cgawron.go.sgf.MarkupModel;
+import de.cgawron.go.sgf.SimpleMarkupModel;
+
 public class SVGGoban
 {
     private static Logger logger = Logger.getLogger(SVGGoban.class.getName());
     private GobanRenderer renderer = new SimpleGobanRenderer();
 
-    private Graphics2D scaleGraphics(Graphics2D g, GobanModel model)
+    private Graphics2D scaleGraphics(Graphics2D g, Goban model)
     {
         if (g == null)
             return null;
@@ -59,8 +69,8 @@ public class SVGGoban
     public void paint(Graphics2D g2d)
     {
         MarkupModel model = new SimpleMarkupModel((short)19);
-        model.move((short)3, (short)3, BoardType.Black);
-        model.setMarkup((short)3, (short)3, new MarkupModel.Move(BoardType.Black, 9));
+        model.move((short)3, (short)3, BoardType.BLACK);
+        model.setMarkup((short)3, (short)3, new MarkupModel.Move(BoardType.BLACK, 9));
         renderer.paint(scaleGraphics(g2d, model), model);
     }
 

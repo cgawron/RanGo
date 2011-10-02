@@ -1,14 +1,17 @@
 /*
+ * Copyright (C) 2011 Christian Gawron
  *
- * $Id: SVGGobanRenderer.java 369 2006-04-14 17:04:02Z cgawron $
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * © 2001 Christian Gawron. All rights reserved.
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package de.cgawron.go.render.svg;
@@ -18,8 +21,13 @@ import java.awt.Shape;
 import java.awt.geom.Ellipse2D;
 import java.util.Iterator;
 
+import org.apache.batik.svggen.SVGGeneratorContext;
+import org.apache.batik.svggen.SVGGraphics2D;
+import org.apache.batik.svggen.StyleHandler;
 import org.w3c.dom.Element;
 
+import de.cgawron.go.Goban;
+import de.cgawron.go.render.SimpleGobanRenderer;
 import de.cgawron.go.sgf.MarkupModel;
 
 /**
@@ -34,7 +42,7 @@ public class SVGGobanRenderer extends SimpleGobanRenderer
 	scale = 10;
     }
 
-    protected void drawBoard(Graphics2D g, GobanModel model)
+    protected void drawBoard(Graphics2D g, Goban model)
     {
 	SVGGraphics2D g2 = (SVGGraphics2D) g.create();
 	SVGGeneratorContext ctx = g2.getGeneratorContext();
@@ -55,7 +63,7 @@ public class SVGGobanRenderer extends SimpleGobanRenderer
 	ctx.setStyleHandler(oldHandler);
     }
 
-    protected void drawBackground(Graphics2D g, GobanModel model)
+    protected void drawBackground(Graphics2D g, Goban model)
     {
 	SVGGraphics2D g2 = (SVGGraphics2D) g.create();
 	SVGGeneratorContext ctx = g2.getGeneratorContext();

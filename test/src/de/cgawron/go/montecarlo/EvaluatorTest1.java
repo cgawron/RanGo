@@ -32,9 +32,10 @@ public class EvaluatorTest1 {
 	@Parameters
     public static List<Object[]> data() {
             return Arrays.asList(new Object[][] { 	
-                    { "seki1.sgf", BoardType.BLACK, 0, 0 },
-                    { "seki1.sgf", BoardType.WHITE, 0, 0 },
-                    { "lifeAndDeath1.sgf", BoardType.BLACK, 60, 0 },
+                    { "seki1.sgf", BoardType.BLACK, 0, null, 0 },
+                    { "seki1.sgf", BoardType.WHITE, 0, null, 0 },
+                    { "lifeAndDeath1.sgf", BoardType.BLACK, 30, new Point(5, 0), 11 },
+                    { "lifeAndDeath1.sgf", BoardType.WHITE, 30, new Point(5, 0), 19 },
             });
     }
     
@@ -43,14 +44,16 @@ public class EvaluatorTest1 {
     private File baseDir = new File("test/sgf");
     private double komi;
     private double expectedScore;
+	private Point expectedMove;
     
-    public EvaluatorTest1(String inputSGF, BoardType movingColor, double komi, double expectedScore) throws Exception {
+    public EvaluatorTest1(String inputSGF, BoardType movingColor, double komi, Point expectedMove, double expectedScore) throws Exception {
     	File inputFile = new File(baseDir, inputSGF);
     	GameTree gameTree = new GameTree(inputFile);
     	goban = gameTree.getLeafs().get(0).getGoban();
     	this.movingColor = movingColor;
     	this.komi = komi;
-    	this.expectedScore = expectedScore;
+    	this.expectedMove = expectedMove;
+       	this.expectedScore = expectedScore;
     }
     
     @Test
@@ -58,8 +61,10 @@ public class EvaluatorTest1 {
 		Evaluator evaluator = new Evaluator();
 		AnalysisNode root = new AnalysisNode(goban, movingColor, komi);
 		double score = evaluator.evaluate(root);
+		AnalysisNode best = root.getBestChild();
 		assertEquals("Testing number of iterations", Evaluator.NUM_SIMULATIONS, root.visits);
-		assertEquals("Testing expected score", expectedScore, score, 2);
+		assertEquals("Testing expected move", expectedMove, best.move);
+		assertEquals("Testing expected score", expectedScore, -best.getScore(), 2);
 	}
 
 }
