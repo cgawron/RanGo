@@ -32,6 +32,7 @@ public class EvaluatorTest1 {
 	@Parameters
     public static List<Object[]> data() {
             return Arrays.asList(new Object[][] { 	
+                    { "ko1.sgf", BoardType.BLACK, 10, new Point(3, 1), 15 },
                     { "seki1.sgf", BoardType.BLACK, 0, null, 0 },
                     { "seki1.sgf", BoardType.WHITE, 0, null, 0 },
                     { "lifeAndDeath1.sgf", BoardType.BLACK, 30, new Point(5, 0), 11 },

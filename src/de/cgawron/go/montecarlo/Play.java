@@ -20,16 +20,20 @@ import com.jgoodies.forms.layout.RowSpec;
 import de.cgawron.go.Goban;
 import de.cgawron.go.Goban.BoardType;
 import de.cgawron.go.Point;
+import de.cgawron.go.montecarlo.Evaluator.EvaluatorEvent;
 import de.cgawron.go.render.JGoban;
+import de.cgawron.go.sgf.MarkupModel;
+import de.cgawron.go.sgf.MarkupModel.Markup;
+import de.cgawron.go.sgf.SimpleMarkupModel;
 
-public class Play extends JFrame
+public class Play extends JFrame implements Evaluator.EvaluatorListener
 {
 	private static final long serialVersionUID = 1L;
 	static Logger logger = Logger.getLogger(Play.class.getName());
 	
 	private JGoban gobanUI;
 	private Evaluator evaluator;
-	private Goban goban = new AnalysisGoban(5);
+	private MarkupModel goban = new SimpleMarkupModel(5);
 	private JTextField moveNo;
 	private JTextField value;
 	private JTextField simulations;
@@ -44,8 +48,12 @@ public class Play extends JFrame
 	
 	public Play() throws HeadlessException {
 		super();
+		goban.putStone(2, 2, BoardType.BLACK);
+		goban.resetMarkup();
+		
 		setTitle("RanGo");
 		evaluator = new Evaluator();
+		evaluator.addEvaluatorListener(this);
 		GridBagLayout gridBagLayout = new GridBagLayout();
 		gridBagLayout.columnWidths = new int[]{387, 0};
 		gridBagLayout.columnWeights = new double[]{0.0, 0.0};
@@ -119,27 +127,29 @@ public class Play extends JFrame
 		value.setColumns(10);
 		
 		simulations = new JTextField();
-		simulations.setEnabled(false);
 		simulations.setEditable(false);
 		evaluatorPanel.add(simulations, "4, 20, fill, default");
 		simulations.setColumns(10);
 		
 		JLabel lblSimulations = new JLabel("Simulations");
 		evaluatorPanel.add(lblSimulations, "2, 20, right, default");
+		
+		
+		//goban.putStone(5, 5, BoardType.BLACK);
 	}
 
 	protected void play(JGoban.GobanActionEvent e) {
 		logger.info("event: " + e);
-		goban.move(e.getPoint(), BoardType.BLACK);
+		goban.move(e.getPoint(), BoardType.WHITE);
 		gobanUI.setEnabled(false);
-		final BoardType movingColor = BoardType.WHITE;
+		final BoardType movingColor = BoardType.BLACK;
 		
 		SwingWorker<String, Object> move = new SwingWorker<String, Object>()
 				{
 
 					@Override
 					protected String doInBackground() throws Exception {
-						AnalysisNode node = new AnalysisNode(goban, movingColor);
+						AnalysisNode node = new AnalysisNode(goban, movingColor, 0.5);
 						evaluator.evaluate(node);
 						Point p = node.getBestChild().move;
 						goban.move(p, movingColor);
@@ -156,11 +166,27 @@ public class Play extends JFrame
 	{
 		Play play = new Play();
 		play.setSize(800, 400);
+		play.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		play.setVisible(true);
 	}
 
 	@Override
 	public void doLayout() {
 		super.doLayout();
+	}
+
+	@Override
+	public void stateChanged(EvaluatorEvent event)
+	{
+		logger.info("Setting simulations to " + Integer.toString(event.outstanding));
+		simulations.setText(Integer.toString(event.outstanding));	
+		value.setText(Double.toString(event.root.getBestChild().value));
+		goban.resetMarkup();
+		for (AnalysisNode child : event.root.children) {
+			if (child.move != null) {
+				Markup m = new MarkupModel.Text(String.format("%.1f:%d", child.value, child.visits));
+				goban.setMarkup(child.move, m);
+			}
+		}
 	}
 }

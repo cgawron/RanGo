@@ -18,19 +18,21 @@
 
 package de.cgawron.go.sgf;
 
-import de.cgawron.go.Goban;
-import de.cgawron.go.Goban.BoardType;
-import de.cgawron.go.GobanEvent;
-import de.cgawron.go.GobanListener;
-import de.cgawron.go.NeighborhoodEnumeration;
-import de.cgawron.go.Point;
-import de.cgawron.go.SimpleGoban;
-
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
-import java.util.*;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.SortedSet;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import de.cgawron.go.Goban;
+import de.cgawron.go.GobanEvent;
+import de.cgawron.go.GobanListener;
+import de.cgawron.go.Point;
+import de.cgawron.go.SimpleGoban;
 
 /**
  * A simple implementation of the MarkupModel interface based on
@@ -43,7 +45,7 @@ public class SimpleMarkupModel extends SimpleGoban implements MarkupModel,
 	protected MarkupModel.Markup[][] markup;
 	private Region region;
 	private SortedSet<Conflict> conflicts = new TreeSet<Conflict>();
-	private Map toolTipMap = new TreeMap();
+	private Map<Point, String> toolTipMap = new TreeMap<Point, String>();
 	private int moveNo = 1;
 
 	/** SimpleMarkupModel constructor comment. */
@@ -69,7 +71,7 @@ public class SimpleMarkupModel extends SimpleGoban implements MarkupModel,
 	}
 
 	/** SimpleGoban constructor comment. */
-	public SimpleMarkupModel(short size)
+	public SimpleMarkupModel(int size)
 	{
 		super(size);
 	}
@@ -132,11 +134,13 @@ public class SimpleMarkupModel extends SimpleGoban implements MarkupModel,
 		if (logger.isLoggable(Level.FINE))
 			logger.fine("SimpleMarkupModel.fireRegionChanged");
 
+		/*
 		GobanEvent e = new GobanEvent(this);
 		// Guaranteed to return a non-null array
 		for (GobanListener listener : listeners) {
-			// listener.regionChanged(e);
+			//listener.regionChanged(e);
 		}
+		*/
 	}
 
 	MarkupModel.Markup getConflictLabel(MarkupModel.Stone s)

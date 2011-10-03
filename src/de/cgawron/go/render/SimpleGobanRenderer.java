@@ -82,7 +82,7 @@ public class SimpleGobanRenderer implements GobanRenderer {
 	protected void drawBoard(Graphics2D g, Goban model) {
 		int boardSize = model.getBoardSize();
 		int max = boardSize;
-		logger.info("SimpleGobanRender: Size is " + boardSize);
+		//logger.info("SimpleGobanRender: Size is " + boardSize);
 
 		g.setColor(getBackground());
 		g.fill(new Rectangle2D.Double(0, 0, scale * max, scale * max));
@@ -169,8 +169,8 @@ public class SimpleGobanRenderer implements GobanRenderer {
 		double width = layout.getAdvance();
 		double height = bounds.getHeight();
 		double maxHeight = maxBounds.getHeight();
-		double h = 0.9;
-		double w = 0.9;
+		double h = 0.7;
+		double w = 0.7;
 		double textscale = (h / maxHeight < w / width ? h / maxHeight : w
 				/ width);
 		// double scale = w/width;
@@ -483,7 +483,7 @@ public class SimpleGobanRenderer implements GobanRenderer {
 				logger.fine("null model");
 			}
 		}
-		logger.info("SimpleGobanRenderer.paint: end");
+		//logger.info("SimpleGobanRenderer.paint: end");
 	}
 
 	public void setBsi(Image newBsi) {
