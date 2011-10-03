@@ -101,8 +101,9 @@ public class Evaluator
 
 	final static Logger logger = Logger.getLogger(Evaluator.class.getName());
 
-	final static int MAX_MOVES = 200;
-	final static int NUM_SIMULATIONS = 1000;
+	static final int MAX_MOVES = 200;
+	static final int NUM_SIMULATIONS = 1000;
+	public static final double RESIGN = 0.1;
 
 	/**
 	 * Calculate the chinese score of a Goban position.

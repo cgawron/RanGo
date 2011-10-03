@@ -7,8 +7,10 @@ import java.util.logging.Logger;
 
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import javax.swing.Popup;
 import javax.swing.SwingWorker;
 import javax.swing.border.CompoundBorder;
 
@@ -151,15 +153,26 @@ public class Play extends JFrame implements Evaluator.EvaluatorListener
 					protected String doInBackground() throws Exception {
 						AnalysisNode node = new AnalysisNode(goban, movingColor, 0.5);
 						evaluator.evaluate(node);
-						Point p = node.getBestChild().move;
-						goban.move(p, movingColor);
-						gobanUI.setEnabled(true);
+						AnalysisNode best = node.getBestChild();
+						if (best.value < Evaluator.RESIGN)
+							resign();
+						else {
+							Point p = best.move;
+							goban.move(p, movingColor);
+							gobanUI.setEnabled(true);
+						}
 						return "ready";
 					}
 			
 				};
 
 		move.execute();
+	}
+
+	protected void resign()
+	{
+		JOptionPane.showConfirmDialog(rootPane, "I resign", "Game over", JOptionPane.OK_OPTION);
+		dispose();
 	}
 
 	public static void main(String[] args) throws Exception
