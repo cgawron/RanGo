@@ -25,34 +25,28 @@ import de.cgawron.go.montecarlo.Evaluator.RandomSimulator;
 
 class AnalysisNode implements Comparable<AnalysisNode>
 {
-	private static final int STEEPNESS = 1;
-
-
-
-	static Logger logger = Logger.getLogger(AnalysisNode.class.getName());
-
+	static Logger logger = Logger.getLogger(AnalysisNode.class.getName());	
 	
-	
-	AnalysisNode parent;
+	int blackAtari = -1;
+	int boardSize;
+
 	Set<AnalysisNode> children;
+	double depth;
 
 	AnalysisGoban goban;
-	Map<Point, Miai> miaiMap;
-
-	int boardSize;
 	double komi;
 	
+	Map<Point, Miai> miaiMap;
 	Point move;
-	int moveNo;
 
+	int moveNo;
+	AnalysisNode parent;
 	double score;
 	double score2;
 	double suitability;
-	double depth;
 	double value;
-	int visits;
 
-	int blackAtari = -1;
+	int visits;
 	int whiteAtari = -1;
 
 	
@@ -203,7 +197,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		return true;
 	}
 	
-	public void evaluateByMC(AnalysisNode[] sequence, int n, double[][] territory)
+	public double evaluateByMC(AnalysisNode[] sequence, int n, double[][] territory)
 	{
 		AnalysisNode currentNode = this; 
 		int depth = 0;
@@ -222,8 +216,16 @@ class AnalysisNode implements Comparable<AnalysisNode>
 				throw new RuntimeException("no result");
 			}
 		} 
-		evaluateByScoring(currentNode, territory);
-		this.depth += depth;
+		//logger.info("MC: calling evaluateByScoring");
+		return currentNode.evaluateByScoring(territory);
+	}
+
+	public double evaluateByScoring(double[][] territory)
+	{
+		double chineseScore = Evaluator.chineseScore(this, territory);
+		chineseScore -= komi;
+	
+		return chineseScore;
 	}
 
 	int getAtariCount(BoardType movingColor) 
@@ -248,7 +250,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 			return 0;	
 		}
 	}
-
+	
 	AnalysisNode getBestChild()
 	{
 		double max = -1;
@@ -264,31 +266,6 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		return best;
 	}
 	
-	public void evaluateByScoring(AnalysisNode leaf, double[][] territory)
-	{
-		double chineseScore = Evaluator.chineseScore(leaf, goban.movingColor, territory);
-		if (goban.movingColor == BoardType.BLACK)
-			chineseScore -= komi;
-		else
-			chineseScore += komi;
-	
-		/* All or nothing ...
-		if (result.score < 0)
-			value = 1;
-		else
-			value = 0;
-		*/
-		
-		// Sigmoid exp(x)/(1+exp(x))
-		double exp = Math.exp(STEEPNESS*chineseScore);
-		value = exp / (1+exp);
-		
-		score -= chineseScore;
-		score2 += chineseScore*chineseScore;
-
-		//logger.info("score=" + chineseScore + ", value=" + value);
-	}
-	
 	
 	private int getSavedStones() 
 	{
@@ -297,6 +274,19 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		
 		// logger.info("getSavedStones: " + move + ": " + parentAtari + " - " + myAtari);
 		return parentAtari - myAtari;
+	}
+	
+	public double getScore()
+	{
+		return score / visits;
+	}
+
+	public double getValue() {
+		return value / visits;
+	}
+
+	public double getVariance() {
+		return Math.sqrt((score2 - score*score/visits) / (visits - 1));
 	}
 	
 	@Override
@@ -361,6 +351,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 					return node;
 			}
 		}
+		//logger.info("no suitable move - passing");
 		AnalysisNode node = createPassNode();
 		//if (node.moveNo >= node.hashCodes.size()) node.hashCodes.setSize(node.moveNo + 1);
 		//node.hashCodes.set(node.moveNo, node.goban.hashCode());
@@ -384,7 +375,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 			if (child.visits == 0) 
 				value = 1000 + child.value;
 			else {
-				value = 1 + child.value + Math.sqrt(2*Math.log(visits)/child.visits);
+				value = 1 + (child.value/child.visits) + Math.sqrt(2*Math.log(visits)/child.visits);
 			}
 			
 			if (value > max) {
@@ -409,22 +400,13 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		return "AnalysisNode [id=" + hashCode()
 				+ ", parent=" + (parent != null ? parent.hashCode() : "null")
 				+ "\nmove=" + move
-				+ ", moveNo=" + moveNo + ", value=" + value 
+				+ ", moveNo=" + moveNo + ", value=" + (value/visits) 
 				+ ", score=" + getScore()
 			    + ", variance=" + getVariance()
 				+ ", movingColor=" + goban.movingColor
 				+ "\nvisits=" + visits
 				+ ", blackAtari=" + blackAtari + ", whiteAatari=" + whiteAtari
 				+ ", suitability=" + suitability + "\n" + goban + "]";
-	}
-	
-	public double getScore()
-	{
-		return score / visits;
-	}
-
-	public double getVariance() {
-		return Math.sqrt((score2 - score*score/visits) / (visits - 1));
 	}
 
 	private void updateMiai() 

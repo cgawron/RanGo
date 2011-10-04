@@ -197,7 +197,7 @@ public class Play extends JFrame implements Evaluator.EvaluatorListener
 		goban.resetMarkup();
 		for (AnalysisNode child : event.root.children) {
 			if (child.move != null) {
-				Markup m = new MarkupModel.Text(String.format("%.1f:%d", child.value, child.visits));
+				Markup m = new MarkupModel.Text(String.format("%.1f:%d", child.getValue(), child.visits));
 				goban.setMarkup(child.move, m);
 			}
 		}

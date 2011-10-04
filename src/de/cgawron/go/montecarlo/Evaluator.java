@@ -104,24 +104,21 @@ public class Evaluator
 	static final int MAX_MOVES = 200;
 	static final int NUM_SIMULATIONS = 1000;
 	public static final double RESIGN = 0.1;
+	private static final int STEEPNESS = 1;
+
 
 	/**
 	 * Calculate the chinese score of a Goban position.
 	 */
-	public static int chineseScore(AnalysisGoban goban,
-			Goban.BoardType movingColor, double[][] territory)
+	public static int chineseScore(AnalysisGoban goban, double[][] territory)
 	{
 		int score = goban.chineseScore(territory);
-
-		if (movingColor == BoardType.WHITE)
-			return -score;
-		else
-			return score;
+		return score;
 	}
 	
-	public static int chineseScore(AnalysisNode node, Goban.BoardType movingColor, double[][] territory)
+	public static int chineseScore(AnalysisNode node, double[][] territory)
 	{
-		return chineseScore(node.goban, movingColor, territory);
+		return chineseScore(node.goban, territory);
 	}
 	
 	public static void main(String[] args) throws Exception
@@ -143,7 +140,7 @@ public class Evaluator
 
 	public Evaluator()
 	{
-		executor = Executors.newFixedThreadPool(1);
+		executor = Executors.newFixedThreadPool(2);
 		workingTree = new HashMap<AnalysisNode, AnalysisNode>();
 	}
 
@@ -152,7 +149,7 @@ public class Evaluator
 		listeners.add(listener);
 	}
 	
-	protected void createNode(AnalysisNode node)
+	synchronized protected void createNode(AnalysisNode node)
 	{
 		synchronized (this) {
 			if (workingTree.containsKey(node))
@@ -237,7 +234,7 @@ public class Evaluator
 				future = workQueue.peek();
 				if (!future.isDone()) {
 					logger.info("still " + workQueue.size()
-							+ " simulations outstanding, value=" + root.value);
+							+ " simulations outstanding, value=" + root.getValue());
 					fireStillWorking(root, workQueue.size(), NUM_SIMULATIONS);
 					Thread.sleep(500);
 					continue;
@@ -246,6 +243,7 @@ public class Evaluator
 				}
 			} catch (Exception ex) {
 				Evaluator.logger.log(Level.WARNING, "evaluate: ", ex);
+				throw new RuntimeException(ex);
 			}
 		}
 		fireDone(root, NUM_SIMULATIONS);
@@ -261,29 +259,9 @@ public class Evaluator
 		 */
 
 		dumpTree(logger, root, 3, 30);
-		logger.info(String
-				.format("evaluate: value=%.1f, score=%.1f +- %.1f, average depth=%.1f\n%s\n%s",
-						root.value, root.score, root.score2, root.depth,
-						root.goban, sb.toString()));
 
 		logger.info("best: " + root.getBestChild());
 		return root.getScore();
-	}
-
-	private void fireDone(AnalysisNode root, int numSimulations)
-	{
-		EvaluatorEvent event = new EvaluatorEvent(root, 0, numSimulations);
-		for (EvaluatorListener listener : listeners) {
-			listener.stateChanged(event);
-		}
-	}
-
-	private void fireStillWorking(AnalysisNode root, int outstanding, int total)
-	{
-		EvaluatorEvent event = new EvaluatorEvent(root, outstanding, total);
-		for (EvaluatorListener listener : listeners) {
-			listener.stateChanged(event);
-		}
 	}
 
 	/** Evaluates the score of a Goban */
@@ -308,38 +286,67 @@ public class Evaluator
 				break;
 		}
 
-		synchronized (this) {
-			createNode(sequence[i]);
-			if (i > 1 && sequence[i].move == null
-					&& sequence[i - 1].move == null) {
-				sequence[i].evaluateByScoring(sequence[i], territory);
-				sequence[i].visits++;
-				updateValues(sequence, i, 1 - sequence[i].value,
-						-sequence[i].score);
-			} else {
-				sequence[i].evaluateByMC(sequence, i, territory);
-				updateValues(sequence, i, sequence[i].value, sequence[i].score);
-			}
+		createNode(sequence[i]);
+		double score;
+		double value;
+		if (i > 1 && sequence[i].move == null
+				&& sequence[i - 1].move == null) {
+			logger.info("end node reached");
+			score = sequence[i].evaluateByScoring(territory);
+		} else {
+			score = sequence[i].evaluateByMC(sequence, i, territory);
 		}
-		// logger.info("simulation " + root.visits + ": UCT sequence end: i=" +
-		// i + ": " + sequence[i]);
-		// logger.info("simulation " + simulation + ": root: " + sequence[0]);
+
+		if (sequence[i].goban.movingColor == BoardType.BLACK)
+			score = -score;
+
+		/* All or nothing ...
+			if (result.score < 0)
+				value = 1;
+			else
+				value = 0;
+		 */
+		// Sigmoid exp(x)/(1+exp(x))
+		double exp = Math.exp(STEEPNESS*score);
+		value = exp / (1+exp);
+
+		//logger.info("score=" + score + ", value=" + value);
+		updateValues(sequence, i, value, score);
 
 	}
 
-	protected void updateValues(AnalysisNode[] sequence, int n, double value,
-			double score)
+	private void fireDone(AnalysisNode root, int numSimulations)
 	{
-		synchronized (this) {
-			for (int i = n - 1; i >= 0; i--) {
-				sequence[i].value = (sequence[i].visits * sequence[i].value + value)
-						/ (sequence[i].visits + 1);
+		EvaluatorEvent event = new EvaluatorEvent(root, 0, numSimulations);
+		for (EvaluatorListener listener : listeners) {
+			listener.stateChanged(event);
+		}
+	}
+
+	private void fireStillWorking(AnalysisNode root, int outstanding, int total)
+	{
+		EvaluatorEvent event = new EvaluatorEvent(root, outstanding, total);
+		for (EvaluatorListener listener : listeners) {
+			listener.stateChanged(event);
+		}
+	}
+
+	synchronized protected void updateValues(AnalysisNode[] sequence, int n, double value, double score)
+	{
+	
+			for (int i = n; i >= 0; i--) {
+				sequence[i].value += value;
 				sequence[i].score += score;
 				sequence[i].score2 += score * score;
 				sequence[i].visits++;
+				/*
+				if (i==1) {
+					logger.info("level 1 update: value=" + value + ", score=" + score + sequence[1]);
+				}
+				*/
 				value = 1 - value;
 				score = -score;
 			}
-		}
+		
 	}
 }
