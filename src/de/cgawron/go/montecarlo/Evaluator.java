@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.WeakHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -94,9 +95,14 @@ public class Evaluator
 		@Override
 		public void run()
 		{
-			evaluateSequenceByUCT(node, territory);
+			try {
+				evaluateSequenceByUCT(node, territory);
+			}
+			catch (Throwable t) {
+				logger.log(Level.SEVERE, "Exception caught", t);
+				throw new RuntimeException(t);
+			}
 		}
-
 	}
 
 	final static Logger logger = Logger.getLogger(Evaluator.class.getName());
@@ -105,6 +111,8 @@ public class Evaluator
 	static final int NUM_SIMULATIONS = 1000;
 	public static final double RESIGN = 0.1;
 	private static final int STEEPNESS = 1;
+
+	private static final int NUM_THREADS = 2;
 
 
 	/**
@@ -140,8 +148,8 @@ public class Evaluator
 
 	public Evaluator()
 	{
-		executor = Executors.newFixedThreadPool(2);
-		workingTree = new HashMap<AnalysisNode, AnalysisNode>();
+		executor = Executors.newFixedThreadPool(NUM_THREADS);
+		workingTree = new WeakHashMap<AnalysisNode, AnalysisNode>();
 	}
 
 	public void addEvaluatorListener(EvaluatorListener listener)
@@ -149,33 +157,7 @@ public class Evaluator
 		listeners.add(listener);
 	}
 	
-	synchronized protected void createNode(AnalysisNode node)
-	{
-		synchronized (this) {
-			if (workingTree.containsKey(node))
-				return;
-			node.children = new HashSet<AnalysisNode>();
-			workingTree.put(node, node);
 
-			for (Point p : Point.all(node.boardSize)) {
-				AnalysisNode child = node.createChild(p);
-				double value = child.calculateStaticSuitability();
-				if (value > 0) {
-					if (workingTree.containsKey(child.goban)) {
-						child = workingTree.get(child.goban);
-					}
-					node.children.add(child);
-					child.value = value;
-				}
-			}
-			AnalysisNode child = node.createPassNode();
-			child.value = 0.1;
-			if (workingTree.containsKey(child.goban)) {
-				child = workingTree.get(child.goban);
-			}
-			node.children.add(child);
-		}
-	}
 
 	protected void dumpTree(Logger logger, AnalysisNode root, int depth,
 			int breadth)
@@ -185,7 +167,7 @@ public class Evaluator
 			@Override
 			public int compare(AnalysisNode a, AnalysisNode b)
 			{
-				return -Double.compare(a.value, b.value);
+				return -Double.compare(a.getValue(), b.getValue());
 			}
 		};
 		SortedSet<AnalysisNode> currentLevel = new TreeSet<AnalysisNode>(
@@ -285,13 +267,13 @@ public class Evaluator
 					&& sequence[i - 1].move == null)
 				break;
 		}
-
 		createNode(sequence[i]);
+
 		double score;
 		double value;
-		if (i > 1 && sequence[i].move == null
-				&& sequence[i - 1].move == null) {
-			logger.info("end node reached");
+		if (i > 1 && sequence[i].move == null && 
+			sequence[i - 1].move == null) {
+			// logger.info("end node reached");
 			score = sequence[i].evaluateByScoring(territory);
 		} else {
 			score = sequence[i].evaluateByMC(sequence, i, territory);
@@ -300,7 +282,8 @@ public class Evaluator
 		if (sequence[i].goban.movingColor == BoardType.BLACK)
 			score = -score;
 
-		/* All or nothing ...
+		// All or nothing ...
+		/*
 			if (result.score < 0)
 				value = 1;
 			else
@@ -331,14 +314,41 @@ public class Evaluator
 		}
 	}
 
-	synchronized protected void updateValues(AnalysisNode[] sequence, int n, double value, double score)
+	protected void createNode(AnalysisNode node)
 	{
+		if (workingTree.containsKey(node))
+			return;
+		
+		synchronized (node) {
+		node.children = new HashSet<AnalysisNode>();
+		workingTree.put(node, node);
+
+		for (Point p : Point.all(node.boardSize)) {
+			AnalysisNode child = node.createChild(p);
+			double value = child.calculateStaticSuitability();
+			if (value > 0) {
+				if (workingTree.containsKey(child.goban)) {
+					child = workingTree.get(child.goban);
+				}
+				node.children.add(child);
+				child.value = value;
+			}
+		}
+		AnalysisNode child = node.createPassNode();
+		child.value = 0.1;
+		if (workingTree.containsKey(child.goban)) {
+			child = workingTree.get(child.goban);
+		}
+		node.children.add(child);
+		}
+	}
 	
+	protected void updateValues(AnalysisNode[] sequence, int n, double value, double score)
+	{
+		synchronized (Evaluator.class) {
 			for (int i = n; i >= 0; i--) {
-				sequence[i].value += value;
-				sequence[i].score += score;
-				sequence[i].score2 += score * score;
-				sequence[i].visits++;
+				sequence[i].update(value, score);
+
 				/*
 				if (i==1) {
 					logger.info("level 1 update: value=" + value + ", score=" + score + sequence[1]);
@@ -347,6 +357,6 @@ public class Evaluator
 				value = 1 - value;
 				score = -score;
 			}
-		
+		}
 	}
 }

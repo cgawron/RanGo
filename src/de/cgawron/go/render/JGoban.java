@@ -435,7 +435,7 @@ public class JGoban extends JComponent implements GobanListener, GobanSelectionL
      */
     public void modelChanged(GobanEvent e)
     {
-        logger.info("Goban: model changed");
+        //logger.info("Goban: model changed");
         repaint();
     }
 

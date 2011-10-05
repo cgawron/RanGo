@@ -151,10 +151,10 @@ public class Play extends JFrame implements Evaluator.EvaluatorListener
 
 					@Override
 					protected String doInBackground() throws Exception {
-						AnalysisNode node = new AnalysisNode(goban, movingColor, 0.5);
+						AnalysisNode node = new AnalysisNode(goban, movingColor, 1.5);
 						evaluator.evaluate(node);
 						AnalysisNode best = node.getBestChild();
-						if (best.value < Evaluator.RESIGN)
+						if (best.getValue() < Evaluator.RESIGN)
 							resign();
 						else {
 							Point p = best.move;
@@ -171,7 +171,7 @@ public class Play extends JFrame implements Evaluator.EvaluatorListener
 
 	protected void resign()
 	{
-		JOptionPane.showConfirmDialog(rootPane, "I resign", "Game over", JOptionPane.OK_OPTION);
+		JOptionPane.showMessageDialog(rootPane, "I resign", "Game over", JOptionPane.OK_OPTION);
 		dispose();
 	}
 

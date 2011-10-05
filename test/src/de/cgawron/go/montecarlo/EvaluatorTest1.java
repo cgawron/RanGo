@@ -3,7 +3,7 @@
  */
 package de.cgawron.go.montecarlo;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 import java.io.File;
 import java.util.Arrays;
@@ -18,7 +18,6 @@ import org.junit.runners.Parameterized.Parameters;
 import de.cgawron.go.Goban;
 import de.cgawron.go.Goban.BoardType;
 import de.cgawron.go.Point;
-import de.cgawron.go.montecarlo.AnalysisGoban.Eye;
 import de.cgawron.go.sgf.GameTree;
 
 /**
@@ -63,7 +62,7 @@ public class EvaluatorTest1 {
 		AnalysisNode root = new AnalysisNode(goban, movingColor, komi);
 		double score = evaluator.evaluate(root);
 		AnalysisNode best = root.getBestChild();
-		assertEquals("Testing number of iterations", Evaluator.NUM_SIMULATIONS, root.visits);
+		assertEquals("Testing number of iterations", Evaluator.NUM_SIMULATIONS, root.getVisits());
 		assertEquals("Testing expected move", expectedMove, best.move);
 		assertEquals("Testing expected score", expectedScore, -best.getScore(), 2);
 	}

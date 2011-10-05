@@ -1,56 +1,41 @@
 package de.cgawron.go.montecarlo;
 
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.Set;
-import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.Vector;
-import java.util.Map.Entry;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import de.cgawron.go.Goban;
+import de.cgawron.go.Goban.BoardType;
 import de.cgawron.go.GobanMap;
 import de.cgawron.go.Point;
-import de.cgawron.go.Goban.BoardType;
 import de.cgawron.go.montecarlo.AnalysisGoban.Eye;
 import de.cgawron.go.montecarlo.AnalysisGoban.Group;
-import de.cgawron.go.montecarlo.Evaluator.AnalysisResult;
-import de.cgawron.go.montecarlo.Evaluator.RandomSimulator;
 
 class AnalysisNode implements Comparable<AnalysisNode>
 {
 	static Logger logger = Logger.getLogger(AnalysisNode.class.getName());	
 	
+	private int visits = 0;
+	int moveNo;
+	int whiteAtari = -1;
 	int blackAtari = -1;
 	int boardSize;
 
-	Set<AnalysisNode> children;
 	double depth;
-
-	AnalysisGoban goban;
 	double komi;
-	
-	Map<Point, Miai> miaiMap;
-	Point move;
-
-	int moveNo;
-	AnalysisNode parent;
-	double score;
-	double score2;
+	private double score;
+	private double score2;
 	double suitability;
 	double value;
 
-	int visits;
-	int whiteAtari = -1;
+	AnalysisNode parent;
+	AnalysisGoban goban;
+	Point move;
 
-	
-
+	Set<AnalysisNode> children;
+	Map<Point, Miai> miaiMap;
 	
 	public AnalysisNode(AnalysisNode analysisNode) 
 	{
@@ -200,14 +185,10 @@ class AnalysisNode implements Comparable<AnalysisNode>
 	public double evaluateByMC(AnalysisNode[] sequence, int n, double[][] territory)
 	{
 		AnalysisNode currentNode = this; 
-		int depth = 0;
 		
 		int i = n;
 		while (true) {
 			sequence[++i] = currentNode = currentNode.selectRandomMCMove(sequence, i);
-			depth++;
-			// logger.info("evaluate: " + currentNode);
-
 			if (currentNode.isPass() && currentNode.parent.isPass()) {
 				break;
 			}
@@ -276,17 +257,17 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		return parentAtari - myAtari;
 	}
 	
-	public double getScore()
+	public final double getScore()
 	{
-		return score / visits;
+		return score / getVisits();
 	}
 
-	public double getValue() {
-		return value / visits;
+	public final double getValue() {
+		return value / getVisits();
 	}
 
-	public double getVariance() {
-		return Math.sqrt((score2 - score*score/visits) / (visits - 1));
+	public final double getVariance() {
+		return Math.sqrt((score2 - score*score/getVisits()) / (getVisits() - 1));
 	}
 	
 	@Override
@@ -299,6 +280,8 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		else return 0;
 	}
 
+
+	
 	private void initializeMiai() 
 	{
 		updateMiai();
@@ -360,38 +343,50 @@ class AnalysisNode implements Comparable<AnalysisNode>
 
 	protected AnalysisNode selectRandomUCTMove(AnalysisNode[] sequence, int n) 
 	{
-		int visits = 0;
+		int _visits = 0;
 		AnalysisNode best = null;
 		double max = -1;
 		
-		for (AnalysisNode child : children)
-		{
-			visits += child.visits;
-		}
-		for (AnalysisNode child : children)
-		{
-			//logger.info("child=" + child);
-			double value;
-			if (child.visits == 0) 
-				value = 1000 + child.value;
-			else {
-				value = 1 + (child.value/child.visits) + Math.sqrt(2*Math.log(visits)/child.visits);
+		synchronized (this) {
+			for (AnalysisNode child : children)
+			{
+				_visits += child.getVisits();
 			}
-			
-			if (value > max) {
-				boolean illegalKo = false;
-				for (int i=n-2; i>=0; i--)
-				{
-					if (sequence[i].goban.equals(child.goban))
-						illegalKo = true;
+			for (AnalysisNode child : children)
+			{
+				//logger.info("child=" + child);
+				double value;
+				if (child.getVisits() == 0) 
+					value = 1000 + child.getValue();
+				else {
+					value = 1 + (getValue()) + Math.sqrt(2*Math.log(_visits)/child.getVisits());
 				}
-				if (!illegalKo) {
-					best = child;
-					max = value;
+
+				if (value > max) {
+					boolean illegalKo = false;
+					for (int i=n-2; i>=0; i--)
+					{
+						if (sequence[i].goban.equals(child.goban)) {
+							illegalKo = true;
+							break;
+						}
+					}
+					AnalysisNode node = sequence[0];
+					while (node.parent != null) {
+						node = node.parent;
+						if (node.goban.equals(child.goban)) {
+							illegalKo = true;
+							break;
+						}
+					}
+					if (!illegalKo) {
+						best = child;
+						max = value;
+					}
 				}
 			}
 		}
-		//logger.info("final max=" + max + ", best=" + best);
+		// logger.info("final max=" + max + ", best=" + best);
 		return best;
 	}
 
@@ -400,11 +395,11 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		return "AnalysisNode [id=" + hashCode()
 				+ ", parent=" + (parent != null ? parent.hashCode() : "null")
 				+ "\nmove=" + move
-				+ ", moveNo=" + moveNo + ", value=" + (value/visits) 
+				+ ", moveNo=" + moveNo + ", value=" + getValue() 
 				+ ", score=" + getScore()
 			    + ", variance=" + getVariance()
 				+ ", movingColor=" + goban.movingColor
-				+ "\nvisits=" + visits
+				+ "\nvisits=" + getVisits()
 				+ ", blackAtari=" + blackAtari + ", whiteAatari=" + whiteAtari
 				+ ", suitability=" + suitability + "\n" + goban + "]";
 	}
@@ -412,5 +407,16 @@ class AnalysisNode implements Comparable<AnalysisNode>
 	private void updateMiai() 
 	{
 		// TODO Look for miai pairs and add them.	
+	}
+
+	synchronized public void update(double value, double score) {
+		this.value += value;
+		this.score += score;
+		this.score2 += score * score;
+		this.visits++;
+	}
+
+	synchronized public final int getVisits() {
+		return visits;
 	}
 }
