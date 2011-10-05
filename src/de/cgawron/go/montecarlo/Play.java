@@ -50,7 +50,7 @@ public class Play extends JFrame implements Evaluator.EvaluatorListener
 	
 	public Play() throws HeadlessException {
 		super();
-		goban.putStone(2, 2, BoardType.BLACK);
+		goban.putStone(1, 2, BoardType.BLACK);
 		goban.resetMarkup();
 		
 		setTitle("RanGo");
@@ -143,6 +143,7 @@ public class Play extends JFrame implements Evaluator.EvaluatorListener
 	protected void play(JGoban.GobanActionEvent e) {
 		logger.info("event: " + e);
 		goban.move(e.getPoint(), BoardType.WHITE);
+		goban.resetMarkup();
 		gobanUI.setEnabled(false);
 		final BoardType movingColor = BoardType.BLACK;
 		
@@ -197,7 +198,7 @@ public class Play extends JFrame implements Evaluator.EvaluatorListener
 		goban.resetMarkup();
 		for (AnalysisNode child : event.root.children) {
 			if (child.move != null) {
-				Markup m = new MarkupModel.Text(String.format("%.1f:%d", child.getValue(), child.visits));
+				Markup m = new MarkupModel.Text(String.format("%.1f:%d", child.getValue(), child.getVisits()));
 				goban.setMarkup(child.move, m);
 			}
 		}

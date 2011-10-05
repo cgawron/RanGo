@@ -108,11 +108,13 @@ public class Evaluator
 	final static Logger logger = Logger.getLogger(Evaluator.class.getName());
 
 	static final int MAX_MOVES = 200;
-	static final int NUM_SIMULATIONS = 1000;
-	public static final double RESIGN = 0.1;
-	private static final int STEEPNESS = 1;
-
+	static final int NUM_SIMULATIONS = 2000;
 	private static final int NUM_THREADS = 2;
+	private static final int STEEPNESS = 1;
+	
+	public static final double RESIGN = 0.1;
+
+
 
 
 	/**
@@ -325,13 +327,11 @@ public class Evaluator
 
 		for (Point p : Point.all(node.boardSize)) {
 			AnalysisNode child = node.createChild(p);
-			double value = child.calculateStaticSuitability();
-			if (value > 0) {
+			if (child.suitability > 0) {
 				if (workingTree.containsKey(child.goban)) {
 					child = workingTree.get(child.goban);
 				}
 				node.children.add(child);
-				child.value = value;
 			}
 		}
 		AnalysisNode child = node.createPassNode();

@@ -459,7 +459,7 @@ public class JGoban extends JComponent implements GobanListener, GobanSelectionL
         {
             logger.info("Goban: setting model " + oldModel + " to " + newModel);
             model = newModel;
-	    model.addGobanListener(this);
+            model.addGobanListener(this);
             firePropertyChange("model", oldModel, newModel);
         }
         repaint();

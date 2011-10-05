@@ -262,7 +262,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		return score / getVisits();
 	}
 
-	public final double getValue() {
+	synchronized public final double getValue() {
 		return value / getVisits();
 	}
 
@@ -357,7 +357,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 				//logger.info("child=" + child);
 				double value;
 				if (child.getVisits() == 0) 
-					value = 1000 + child.getValue();
+					value = 1000 + child.suitability;
 				else {
 					value = 1 + (getValue()) + Math.sqrt(2*Math.log(_visits)/child.getVisits());
 				}
