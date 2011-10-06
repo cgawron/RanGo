@@ -35,6 +35,8 @@ import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.xml.bind.annotation.XmlAttribute;
+
 import de.cgawron.go.Goban;
 import de.cgawron.go.Goban.BoardType;
 import de.cgawron.go.Point;
@@ -105,17 +107,30 @@ public class Evaluator
 		}
 	}
 
+	public static class EvaluatorParameters 
+	{
+		@XmlAttribute
+		public int maxMoves = 200;
+		
+		@XmlAttribute
+		public int numSimulations = 2000;
+		
+		@XmlAttribute
+		public int numThreads = 2;
+		
+		@XmlAttribute
+		public int steepness = 1;
+
+		@Override
+		public String toString() {
+			return "EvaluatorParameters [maxMoves=" + maxMoves
+					+ ", numSimulations=" + numSimulations + ", numThreads="
+					+ numThreads + ", steepness=" + steepness + "]";
+		}
+		
+	}
+
 	final static Logger logger = Logger.getLogger(Evaluator.class.getName());
-
-	static final int MAX_MOVES = 200;
-	static final int NUM_SIMULATIONS = 2000;
-	private static final int NUM_THREADS = 2;
-	private static final int STEEPNESS = 1;
-	
-	public static final double RESIGN = 0.1;
-
-
-
 
 	/**
 	 * Calculate the chinese score of a Goban position.
@@ -141,17 +156,22 @@ public class Evaluator
 		logger.info("score=" + score);
 	}
 
+	public static EvaluatorParameters parameters;
 	private ExecutorService executor;
 	private List<EvaluatorListener> listeners = new ArrayList<EvaluatorListener>();
-
 	private int simulation;
 
 	Map<AnalysisNode, AnalysisNode> workingTree;
 
 	public Evaluator()
 	{
-		executor = Executors.newFixedThreadPool(NUM_THREADS);
+		parameters = new EvaluatorParameters();
 		workingTree = new WeakHashMap<AnalysisNode, AnalysisNode>();
+	}
+
+	public void setParameters(EvaluatorParameters parameters) 
+	{
+		this.parameters = parameters;
 	}
 
 	public void addEvaluatorListener(EvaluatorListener listener)
@@ -204,9 +224,9 @@ public class Evaluator
 
 		Queue<Future<?>> workQueue = new LinkedList<Future<?>>();
 
-		for (simulation = 0; simulation < NUM_SIMULATIONS; simulation++) {
+		for (simulation = 0; simulation < parameters.numSimulations; simulation++) {
 			Runnable simulation = new RandomSimulator(root, territory);
-			workQueue.add(executor.submit(simulation));
+			workQueue.add(getExecutor().submit(simulation));
 			// evaluateSequenceByUCT(root, territory);
 			// logger.info("simulation " + simulation + ": value=" + root.value
 			// + ", tree size: " + workingTree.size());
@@ -219,7 +239,7 @@ public class Evaluator
 				if (!future.isDone()) {
 					logger.info("still " + workQueue.size()
 							+ " simulations outstanding, value=" + root.getValue());
-					fireStillWorking(root, workQueue.size(), NUM_SIMULATIONS);
+					fireStillWorking(root, workQueue.size(), parameters.numSimulations);
 					Thread.sleep(500);
 					continue;
 				} else {
@@ -230,7 +250,7 @@ public class Evaluator
 				throw new RuntimeException(ex);
 			}
 		}
-		fireDone(root, NUM_SIMULATIONS);
+		fireDone(root, parameters.numSimulations);
 
 		StringBuffer sb = new StringBuffer();
 		/*
@@ -248,6 +268,12 @@ public class Evaluator
 		return root.getScore();
 	}
 
+	public ExecutorService getExecutor() {
+		if (executor == null)
+			executor = Executors.newFixedThreadPool(parameters.numThreads);
+		return executor;
+	}
+
 	/** Evaluates the score of a Goban */
 	public double evaluate(Goban goban, Goban.BoardType movingColor, double komi)
 	{
@@ -257,7 +283,7 @@ public class Evaluator
 
 	public void evaluateSequenceByUCT(AnalysisNode root, double[][] territory)
 	{
-		AnalysisNode[] sequence = new AnalysisNode[MAX_MOVES];
+		AnalysisNode[] sequence = new AnalysisNode[parameters.maxMoves];
 		sequence[0] = root;
 
 		int i = 0;
@@ -292,7 +318,7 @@ public class Evaluator
 				value = 0;
 		 */
 		// Sigmoid exp(x)/(1+exp(x))
-		double exp = Math.exp(STEEPNESS*score);
+		double exp = Math.exp(parameters.steepness*score);
 		value = exp / (1+exp);
 
 		//logger.info("score=" + score + ", value=" + value);

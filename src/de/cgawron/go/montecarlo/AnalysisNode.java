@@ -12,6 +12,7 @@ import de.cgawron.go.GobanMap;
 import de.cgawron.go.Point;
 import de.cgawron.go.montecarlo.AnalysisGoban.Eye;
 import de.cgawron.go.montecarlo.AnalysisGoban.Group;
+import de.cgawron.go.montecarlo.Evaluator.EvaluatorParameters;
 
 class AnalysisNode implements Comparable<AnalysisNode>
 {
@@ -193,7 +194,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 				break;
 			}
 			
-			if (currentNode.moveNo > Evaluator.MAX_MOVES) {
+			if (currentNode.moveNo > Evaluator.parameters.maxMoves) {
 				throw new RuntimeException("no result");
 			}
 		} 

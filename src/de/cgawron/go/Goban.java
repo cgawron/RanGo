@@ -17,7 +17,8 @@ package de.cgawron.go;
 
 import java.beans.PropertyChangeListener;
 
-import de.cgawron.go.Goban.BoardType;
+import javax.xml.bind.annotation.XmlEnum;
+import javax.xml.bind.annotation.XmlEnumValue;
 
 /**
  * Represents the state (i.e. the position of all the stones on the board) of a
@@ -29,9 +30,12 @@ import de.cgawron.go.Goban.BoardType;
  */
 public interface Goban extends Cloneable
 {
+	@XmlEnum(String.class)
 	public enum BoardType
 	{
-		EMPTY, BLACK, WHITE;
+		@XmlEnumValue("empty") EMPTY, 
+		@XmlEnumValue("black") BLACK, 
+		@XmlEnumValue("white") WHITE;
 
 		public BoardType opposite()
 		{

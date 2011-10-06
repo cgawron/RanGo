@@ -14,6 +14,8 @@ package de.cgawron.go;
 
 import java.util.Iterator;
 
+import javax.xml.bind.annotation.XmlAttribute;
+
 /**
  * A point on a Goban.
  * 
@@ -37,9 +39,11 @@ public class Point implements Comparable<Point>
 	}
 
 	/** The x coordinate of the point. */
+	@XmlAttribute
 	protected short x;
 
 	/** The y coordinate of the point. */
+	@XmlAttribute
 	protected short y;
 
 	/**

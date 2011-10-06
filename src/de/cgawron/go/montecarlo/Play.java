@@ -10,7 +10,6 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
-import javax.swing.Popup;
 import javax.swing.SwingWorker;
 import javax.swing.border.CompoundBorder;
 
@@ -19,7 +18,6 @@ import com.jgoodies.forms.layout.ColumnSpec;
 import com.jgoodies.forms.layout.FormLayout;
 import com.jgoodies.forms.layout.RowSpec;
 
-import de.cgawron.go.Goban;
 import de.cgawron.go.Goban.BoardType;
 import de.cgawron.go.Point;
 import de.cgawron.go.montecarlo.Evaluator.EvaluatorEvent;
@@ -31,6 +29,7 @@ import de.cgawron.go.sgf.SimpleMarkupModel;
 public class Play extends JFrame implements Evaluator.EvaluatorListener
 {
 	private static final long serialVersionUID = 1L;
+	protected static final double RESIGN = 0.1;
 	static Logger logger = Logger.getLogger(Play.class.getName());
 	
 	private JGoban gobanUI;
@@ -155,7 +154,7 @@ public class Play extends JFrame implements Evaluator.EvaluatorListener
 						AnalysisNode node = new AnalysisNode(goban, movingColor, 1.5);
 						evaluator.evaluate(node);
 						AnalysisNode best = node.getBestChild();
-						if (best.getValue() < Evaluator.RESIGN)
+						if (best.getValue() < RESIGN)
 							resign();
 						else {
 							Point p = best.move;

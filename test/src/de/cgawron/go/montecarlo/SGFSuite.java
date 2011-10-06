@@ -1,6 +1,9 @@
 package de.cgawron.go.montecarlo;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -9,6 +12,14 @@ import java.lang.annotation.Target;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.Unmarshaller;
+import javax.xml.bind.annotation.XmlAttribute;
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlEnum;
+import javax.xml.bind.annotation.XmlList;
+import javax.xml.bind.annotation.XmlRootElement;
 
 import org.junit.runner.Runner;
 import org.junit.runner.notification.RunNotifier;
@@ -21,6 +32,7 @@ import org.junit.runners.model.TestClass;
 
 import de.cgawron.go.Goban;
 import de.cgawron.go.Goban.BoardType;
+import de.cgawron.go.montecarlo.Evaluator.EvaluatorParameters;
 import de.cgawron.go.sgf.GameTree;
 import de.cgawron.go.Point;
 
@@ -36,36 +48,67 @@ public class SGFSuite extends Suite {
 		String value();
 	}
 
-	public static class SGFTestParameters
+
+	@XmlRootElement(name="testcases")
+	static class TestCases {
+		@XmlElement
+		EvaluatorParameters evaluatorParameters;
+		
+		@XmlElement(name="testcase")
+		List<SGFTestCase> testCases;
+	}
+
+	public static class SGFTestCase
 	{
 	    private File baseDir = new File("test/sgf");
-	    private File inputFile;
-		private Goban goban;
-		private BoardType movingColor;
-		private double komi; 
-		private Point expectedMove; 
-		private double expectedScore;
+	
+	    @XmlAttribute
+	    public String sgfFile;
 
-		public SGFTestParameters(String sgfFile, BoardType movingColor, 
-				                 double komi, Point expectedMove, double expectedScore) throws Exception
+	    private Goban goban;
+	    
+	    @XmlAttribute
+		public BoardType movingColor;
+	    
+	    @XmlAttribute
+	    public double komi;
+		
+	    @XmlElement(name="expected")
+	    public Point expectedMove;
+		
+	    @XmlAttribute
+	    public double expectedScore;
+
+		@XmlElement(name="evaluatorParamters")
+		EvaluatorParameters evaluatorParameters;
+		
+		public SGFTestCase()
+		{
+		}
+		
+		public SGFTestCase(String sgfFile, BoardType movingColor, 
+				           double komi, Point expectedMove, double expectedScore) throws Exception
 		{
 			this.movingColor = movingColor;
 			this.komi = komi;
 			this.expectedMove = expectedMove;
 			this.expectedScore = expectedScore;
-	    	this.inputFile = new File(baseDir, sgfFile);
-	    	GameTree gameTree = new GameTree(inputFile);
-	    	goban = gameTree.getLeafs().get(0).getGoban();
+	    	this.sgfFile = sgfFile;
 		}
 		
 		@Override
 		public String toString() {
-			return "[file=" + inputFile + ", movingColor="
+			return "[file=" + sgfFile + ", movingColor="
 					+ movingColor + ", komi=" + komi + ", expectedMove="
 					+ expectedMove + ", expectedScore=" + expectedScore + "]";
 		}
 		
-		public Goban getGoban() {
+		public Goban getGoban() throws Exception {
+			if (goban == null) {
+				File inputFile = new File(baseDir, sgfFile);
+		    	GameTree gameTree = new GameTree(inputFile);
+		    	goban = gameTree.getLeafs().get(0).getGoban();
+			}
 			return goban.clone();
 		}
 
@@ -88,9 +131,9 @@ public class SGFSuite extends Suite {
 	
 	private class TestClassRunnerForSGFSuite extends BlockJUnit4ClassRunner 
 	{
-		private final SGFTestParameters parameters;
+		private final SGFTestCase parameters;
 
-		TestClassRunnerForSGFSuite(Class<?> type, SGFTestParameters parameters) throws InitializationError 
+		TestClassRunnerForSGFSuite(Class<?> type, SGFTestCase parameters) throws InitializationError 
 		{
 			super(type);
 			this.parameters = parameters;
@@ -103,12 +146,12 @@ public class SGFSuite extends Suite {
 
 		@Override
 		protected String getName() {
-			return String.format("[%s]", parameters.toString());
+			return String.format("[%s]", parameters.sgfFile);
 		}
 
 		@Override
 		protected String testName(final FrameworkMethod method) {
-			return String.format("%s", method.getName());
+			return String.format("%s[%s]", method.getName(), parameters.toString());
 		}
 
 		@Override
@@ -125,7 +168,13 @@ public class SGFSuite extends Suite {
 		protected Annotation[] getRunnerAnnotations() {
 			return new Annotation[0];
 		}
-	
+		
+		@Override
+		public String toString() {
+			return "TestClassRunnerForSGFSuite [parameters=" + parameters
+					+ ", testClass=" + getTestClass().getJavaClass() + "]";
+		}
+
 	}
 
 	private final ArrayList<Runner> runners = new ArrayList<Runner>();
@@ -136,8 +185,8 @@ public class SGFSuite extends Suite {
 	public SGFSuite(Class<?> testClass) throws Throwable 
 	{
 		super(testClass, Collections.<Runner> emptyList());
-		List<SGFTestParameters> parametersList = getParametersList(getTestClass());
-		for (SGFTestParameters parameters : parametersList) {
+		List<SGFTestCase> parametersList = getParametersList(getTestClass());
+		for (SGFTestCase parameters : parametersList) {
 			runners.add(new TestClassRunnerForSGFSuite(getTestClass().getJavaClass(), parameters));
 		}
 	}
@@ -147,12 +196,33 @@ public class SGFSuite extends Suite {
 		return runners;
 	}
 
-	private List<SGFTestParameters> getParametersList(TestClass testClass) throws Throwable {
-		ArrayList<SGFTestParameters> parameters = new ArrayList<SGFTestParameters>();
+	private List<SGFTestCase> getParametersList(TestClass testClass) throws Throwable {
+		ArrayList<SGFTestCase> parameters = new ArrayList<SGFTestCase>();
 		SuiteConfig config = testClass.getJavaClass().getAnnotation(SuiteConfig.class);
+		TestCases cases = null;
+		InputStream is = null;
+		try {
+			is = new FileInputStream(config.value());
+			JAXBContext jc = JAXBContext.newInstance(TestCases.class);
+			Unmarshaller u = jc.createUnmarshaller();
+			cases = (TestCases) u.unmarshal(is);
+		}
+		catch (IOException ex) {
+			throw new Exception("Could not parse suite configuration file " + config.value(), ex);
+		}
+		finally {
+			if (is != null)
+				is.close();
+		}
 
-		parameters.add(new SGFTestParameters("ko1.sgf", BoardType.BLACK, 10, new Point(3, 1), 15 ));
-		//parameters.add(new SGFTestParameters("ko1.sgf", BoardType.WHITE, 10, new Point(3, 1), 15 ));
+		if (cases != null && cases.testCases != null) {
+			for (SGFTestCase tc : cases.testCases) {
+				if (tc.evaluatorParameters == null) {
+					tc.evaluatorParameters = cases.evaluatorParameters;
+				}
+				parameters.add(tc);
+			}
+	    }	
 		return parameters;
 	}
 
