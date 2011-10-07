@@ -12,10 +12,10 @@
 		<evaluatorParameters numSimulations="500" />
 	</testcase>
 	<testcase sgfFile="seki1.sgf" movingColor="white" komi="0" expectedResult="0" />
-	<testcase sgfFile="lifeAndDeath1.sgf" movingColor="black" komi="30" expectedResult="10">
+	<testcase sgfFile="lifeAndDeath1.sgf" movingColor="black" komi="30" expectedResult="11">
 		<expected x="5" y="0" />
 	</testcase>
-	<testcase sgfFile="lifeAndDeath1.sgf" movingColor="white" komi="30" expectedResult="10">
+	<testcase sgfFile="lifeAndDeath1.sgf" movingColor="white" komi="30" expectedResult="19">
 		<expected x="5" y="0" />
 	</testcase>
 	

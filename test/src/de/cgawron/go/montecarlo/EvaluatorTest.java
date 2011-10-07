@@ -10,7 +10,6 @@ import java.util.logging.Logger;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import de.cgawron.go.montecarlo.Evaluator.EvaluatorParameters;
 import de.cgawron.go.montecarlo.SGFSuite.SGFTestCase;
 import de.cgawron.go.montecarlo.SGFSuite.SuiteConfig;
 
@@ -41,7 +40,7 @@ public class EvaluatorTest
 		AnalysisNode best = root.getBestChild();
 		assertEquals("Testing number of iterations", evaluator.parameters.numSimulations, root.getVisits());
 		assertEquals("Testing expected move", parameters.getExpectedMove(), best.move);
-		assertEquals("Testing expected score", parameters.getExpectedScore(), -best.getScore(), 2);
+		assertEquals("Testing expected score", parameters.getExpectedScore(), best.getScore(), parameters.getTolerance());
 	}
 
 }

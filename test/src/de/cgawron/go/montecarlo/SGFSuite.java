@@ -79,6 +79,9 @@ public class SGFSuite extends Suite {
 	    @XmlAttribute
 	    public double expectedScore;
 
+	    @XmlAttribute
+	    public double tolerance = 3;
+
 		@XmlElement(name="evaluatorParamters")
 		EvaluatorParameters evaluatorParameters;
 		
@@ -126,6 +129,10 @@ public class SGFSuite extends Suite {
 
 		public double getExpectedScore() {
 			return expectedScore;
+		}
+
+		public double getTolerance() {
+			return tolerance;
 		}
 	}
 	
