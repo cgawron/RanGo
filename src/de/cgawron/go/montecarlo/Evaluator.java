@@ -135,7 +135,7 @@ public class Evaluator
 	/**
 	 * Calculate the chinese score of a Goban position.
 	 */
-	public static int chineseScore(AnalysisGoban goban, double[][] territory)
+	public static int chineseScore(OldAnalysisGoban goban, double[][] territory)
 	{
 		int score = goban.chineseScore(territory);
 		return score;
@@ -143,7 +143,7 @@ public class Evaluator
 	
 	public static int chineseScore(AnalysisNode node, double[][] territory)
 	{
-		return chineseScore(node.goban, territory);
+		return node.goban.chineseScore(territory);
 	}
 	
 	public static void main(String[] args) throws Exception
@@ -307,7 +307,7 @@ public class Evaluator
 			score = sequence[i].evaluateByMC(sequence, i, territory);
 		}
 
-		if (sequence[i].goban.movingColor == BoardType.BLACK)
+		if (sequence[i].movingColor == BoardType.BLACK)
 			score = -score;
 
 		// All or nothing ...

@@ -18,7 +18,7 @@ import org.junit.runners.Parameterized.Parameters;
 import de.cgawron.go.Goban;
 import de.cgawron.go.Goban.BoardType;
 import de.cgawron.go.Point;
-import de.cgawron.go.montecarlo.AnalysisGoban.Eye;
+import de.cgawron.go.montecarlo.OldAnalysisGoban.Eye;
 import de.cgawron.go.sgf.GameTree;
 
 /**
@@ -59,6 +59,7 @@ public class EyeTest {
 		int maxId = 0;
 		
 		StringBuffer sb = new StringBuffer();
+		/*
 		for (int i=0; i<size; i++) {
 			sb.append("\n");
 			for (int j=0; j<size; j++) {
@@ -75,6 +76,7 @@ public class EyeTest {
 		for (int i=0; i<maxId; i++) {
 			logger.info(String.format("Eye %d: %s", i, node.goban.eyes[i]));
 		}
+		*/
 		//assertEquals("Testing expected score", expectedScore, score, 0.2);
 	}
 

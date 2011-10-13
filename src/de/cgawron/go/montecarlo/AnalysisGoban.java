@@ -2,24 +2,39 @@ package de.cgawron.go.montecarlo;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.Vector;
-import java.util.logging.Logger;
 
+import de.cgawron.go.AbstractGoban;
 import de.cgawron.go.Goban;
-import de.cgawron.go.Neighborhood;
 import de.cgawron.go.Point;
-import de.cgawron.go.SimpleGoban;
-import de.cgawron.go.montecarlo.AnalysisGoban.Eye;
+import de.cgawron.go.Symmetry;
 
-public class AnalysisGoban extends SimpleGoban 
+public class AnalysisGoban extends AbstractGoban 
 {
+	class BoardRep
+	{
+		BoardType color;
+		Cluster cluster;
+
+		public BoardRep(BoardType color, Cluster cluster) 
+		{
+			this.color = color;
+			this.cluster = cluster;
+		}
+
+		@Override
+		public String toString() {
+			return "BoardRep [color=" + color + ", cluster=" + cluster + "]";
+		}
+	}
 	/**
 	 * A connected chain of stones.
 	 *  
@@ -28,57 +43,181 @@ public class AnalysisGoban extends SimpleGoban
 	 */
 	public class Chain extends Cluster
 	{
-		int numLiberties;
+		Set<Point> liberties; 
 		
-		public Chain(BoardType color) {
-			super(lastChainId++, color);
+		protected Chain(BoardType color, Point p) {
+			super(color);
+			liberties = new TreeSet<Point>();
+			addPoint(p);
+			for (Point q : p.neighbors(AnalysisGoban.this)) {
+				addLiberty(q);
+			}
+		}
+		
+		protected Chain(Chain parent)
+		{
+			super(parent);
 		}
 
-		public void addLiberty(Point p) 
-		{
-			numLiberties++;
+		public void addLiberty(Point p) {
+			if (parent != null) copy();
+			liberties.add(p);
 		}
 
 		@Override
-		public int compareTo(Cluster cluster) 
-		{
-			if (cluster instanceof Chain) {
-				if (this.id < cluster.id) return -1;
-				else if (this.id > cluster.id) return 1;
-				else return 0;
+		protected void copy() {
+			if (parent != null) {
+				this.liberties = new TreeSet<Point>(((Chain) parent).liberties);
+				super.copy();
 			}
-			else return +1;
+		}
+
+		public final Set<Point> getLiberties() {
+			Set<Point> result;
+			if (parent != null)
+				result = ((Chain) parent).liberties;
+			else
+				result = liberties;
+			
+			return Collections.unmodifiableSet(result);
+		}
+
+		public void join(Chain chain) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		public void removeLiberty(Point p) {
+			if (parent != null) copy();
+			liberties.remove(p);
 		}
 
 		@Override
 		public String toString() {
-			return "Chain [color=" + color + ", numLiberties=" + numLiberties
-					+ ", size=" + size + ", id=" + id + "]";
+			return toString(false);
+		}
+		
+		public String toString(boolean expand) {
+			return "Chain [color=" + getColor() + ", numLiberties=" + getLiberties().size()
+					+ ", size=" + size() 
+					+ (expand ? ", neighbors=" + getNeighbors().toString() + "]" :  "]");
 		}
 	}
 
-	public abstract class Cluster implements Comparable<Cluster>
+	/**
+	 * A connected cluster of points of same BoardType.
+	 * This class uses a "copy on write" approach for updates as one move will usually only affect few clusters (indeed, at maximum four). 
+	 *  
+	 * @author Christian Gawron
+	 *
+	 */
+	public abstract class Cluster 
 	{
+		/**
+		 * If not null, delegate all operations to the parent. If an operation changes the state of the cluster, it should copy the state of 
+		 * the parent and set parent to null. 
+		 */
+		protected Cluster parent;
+		
 		protected BoardType color;
-		protected int size;
-		protected int id;
+		private Set<Point> points;
+		private Set<Cluster> neighbors;
 		
-		protected Set<Cluster> neighbors; 
-		
-		Cluster(int id, BoardType color) 
+		protected Cluster(BoardType color) 
 		{
-			this.id = id;
+			clusters.add(this);
 			this.color = color;
-			this. neighbors = new TreeSet<Cluster>();
+			this.points = new TreeSet<Point>();
+			this.neighbors = new HashSet<Cluster>();
 		}
+
+		protected Cluster(BoardType color, Collection<Point> points) {
+			this(color);
+			this.points.addAll(points);
+		}
+
+		protected Cluster(Cluster parent) 
+		{
+			clusters.add(this);
+			this.parent = parent;
+		}
+
+
 		
+		protected Cluster(BoardType color, Collection<Point> points, Set<Cluster> neighbors) {
+			clusters.add(this);
+			this.color = color;
+			this.points = new TreeSet<Point>(points);
+			this.neighbors = neighbors;
+		}
+
 		public void addNeighbor(Cluster cluster)
 		{
+			if (parent != null)
+				copy();
 			neighbors.add(cluster);
 		}
+		
+		public void addPoint(Point p) {
+			if (parent != null)
+				copy();
+			points.add(p);
+		}
+		
+		protected void copy() 
+		{
+			if (parent != null) {
+				this.color = parent.color;
+				this.points = new TreeSet<Point>(parent.points);
+				this.neighbors = new HashSet<Cluster>(parent.neighbors);
+				parent = null;
+			}
+		}
+		
+		public final BoardType getColor() {
+			if (parent != null)
+				return parent.color;
+			else 
+				return color;
+		}
+
+		public final Set<Cluster> getNeighbors() {
+			Set<Cluster> result;
+			if (parent != null)
+				result = parent.neighbors;
+			else
+				result = neighbors;
+			
+			return Collections.unmodifiableSet(result);
+		}
+
+		public final Set<Point> getPoints() {
+			Set<Point> result;
+			if (parent != null)
+				result =  parent.points;
+			else
+				result = points;
+			
+			return Collections.unmodifiableSet(result);
+		}
+
+		protected int size() {
+			return points.size();
+		}
+
+		public Point getPoint() {
+			return points.iterator().next();
+		}
+
+		public void remove(Point p) {
+			if (parent != null) copy();
+			points.remove(p);
+		}
+
+		abstract public String toString(boolean expand); 
 
 	}
-
+	
 	public class Eye extends Cluster  
 	{
 		/** This eye is definitely a real eye for a group */
@@ -88,23 +227,15 @@ public class AnalysisGoban extends SimpleGoban
 		
 		public Eye() 
 		{
-			super(lastEyeId++, BoardType.EMPTY);
+			super(BoardType.EMPTY);
 		}
 
-		@Override
-		public int compareTo(Cluster cluster) 
-		{
-			if (cluster instanceof Eye) {
-				if (this.id < cluster.id) return -1;
-				else if (this.id > cluster.id) return 1;
-				else return 0;
-			}
-			else return -1;
+		public Eye(Collection<Point> points) {
+			super(BoardType.EMPTY, points);
 		}
 
-		@Override
-		public String toString() {
-			return "Eye [size=" + size + ", id=" + id + ", real=" + real + ", color=" + color + "]";
+		public Eye(Collection<Point> points, Set<Cluster> neighbors) {
+			super(BoardType.EMPTY, points, neighbors);
 		}
 
 		public boolean isVitalPoint(Point move) {
@@ -112,8 +243,19 @@ public class AnalysisGoban extends SimpleGoban
 			return true;
 		}
 
-	}
+		@Override
+		public String toString() {
+			return toString(false);
+		}
+		
+		
+		public String toString(boolean expand) {
+			return "Eye [size=" + size() + ", real=" + real + ", color=" + getColor() 
+					+ (expand ? ", neighbors=" + getNeighbors().toString() + "]" :  "]");
+		}
 
+	}
+	
 	public class Group 
 	{
 		Set<Chain> chains;
@@ -125,449 +267,424 @@ public class AnalysisGoban extends SimpleGoban
 			eyes = new TreeSet<Eye>();
 		}
 		
-		@Override
-		public String toString() {
-			return "Group [chains=" + chains + ", eyes=" + eyes + "]";
-		}
-
 		public boolean isAlive() {
 			if (eyes.size() >= 2)
 				return true;
 			else 
 				return false;
 		}
+
+		@Override
+		public String toString() {
+			return "Group [chains=" + chains + ", eyes=" + eyes + "]";
+		}
 	}
 
-	private static final int INITIAL_CHAIN_SIZE = 32;
-	
-	public static Logger logger = Logger.getLogger(AnalysisGoban.class.getName());
-	int lastChainId;
-	int lastEyeId;
-	int[] chainMap;
-	int[] eyeMap;
-	Chain[] chains;
-	Eye[] eyes;
-	Set<Group> groups;
-	BoardType movingColor;
-	
+	protected Set<Cluster> clusters;
+	BoardRep[] boardRep;
+	private int _hash;
+	private Collection<Point> allPoints;
+
 	public AnalysisGoban() {
-		super();
-	}
-
-	public AnalysisGoban(Goban m, BoardType movingColor) {
-		super(m);
-		this.movingColor = movingColor;
-		initAnalysis();
+		clusters = new HashSet<Cluster>();
 	}
 	
-	public AnalysisGoban(AnalysisGoban m) {
-		super(m);
-		this.movingColor = m.movingColor;
-		initAnalysis();
+	public AnalysisGoban(Goban goban) {
+		this();
+		copy(goban);
 	}
 
-	public AnalysisGoban(int size) {
-		super(size);
-		this.movingColor = BoardType.BLACK;
-		initAnalysis();
+	public AnalysisGoban(int boardSize) {
+		this();
+		this.boardSize = boardSize;
+		initBoard();
 	}
 
-	private void addAdjacency(Cluster chain1, Cluster chain2) 
-	{
-		chain1.addNeighbor(chain2);
-		chain2.addNeighbor(chain1);
-	}
-	
-	private void addChain(Point point) 
-	{
-		//logger.info("addChain: " + point);
-		BoardType color = getStone(point);
-		Chain chain = new Chain(color);
-		if (chain.id >= chains.length)
-			chains = Arrays.copyOf(chains, 2*chains.length);
-		chains[chain.id] = chain;
-		Queue<Point> queue = new LinkedList<Point>();
-		queue.add(point);
-		
-		visited++;
-		//logger.info("addChain: visited=" + visited);
-		while (!queue.isEmpty()) {
-			Point q = queue.poll();
-			chainMap[q.getX()*size + q.getY()] = chain.id;
-			chain.size++;
-			setVisited(q, visited);
-			for (Point p : new Neighborhood(this, q)) {
-				if (getStone(p) == color) {
-					if (chainMap[p.getX()*size + p.getY()] != chain.id) {
-						queue.add(p);
-					}
-				}
-				else if (getStone(p) == BoardType.EMPTY) {
-					if (!isVisited(p, visited)) {
-						chain.addLiberty(p);
-						setVisited(p, visited);
-						if (eyeMap[p.getX()*size + p.getY()] >= 0) {
-							addAdjacency(chain, eyes[eyeMap[p.getX()*size + p.getY()]]);
-						}
-					}
-				}
-				else if (chainMap[p.getX()*size + p.getY()] >= 0) {
-					addAdjacency(chain, chains[chainMap[p.getX()*size + p.getY()]]);
-				}
-			}
-		}
-		//logger.info("addChain: chain=" + chain);
-	}
-	private void addEye(Point point) 
-	{
-		//logger.info("addChain: " + point);
-		Eye eye = new Eye();
-		if (eye.id >= eyes.length)
-			eyes = Arrays.copyOf(eyes, 2*eyes.length);
-		eyes[eye.id] = eye;
-		Queue<Point> queue = new LinkedList<Point>();
-		queue.add(point);
-		
-		//visited++;
-		//logger.info("addEye: visited=" + visited);
-		while (!queue.isEmpty()) {
-			Point q = queue.poll();
-			eyeMap[q.getX()*size + q.getY()] = eye.id;
-			eye.size++;
-			//setVisited(q, visited);
-			for (Point p : new Neighborhood(this, q)) {
-				if (getStone(p) == BoardType.EMPTY) {
-					if (eyeMap[p.getX()*size + p.getY()] != eye.id) {
-						queue.add(p);
-					}
-				}
-				else if (chainMap[p.getX()*size + p.getY()] >= 0) {
-					addAdjacency(chains[chainMap[p.getX()*size + p.getY()]], eye);
-				}
-			}
-		}
-		//logger.info("addEye: eye=" + eye);
-	}
-
-	private void analyzeEye(Eye eye) 
-	{
-		// if an eye is only adjacent to one group, it can't be false
-		if (eye.neighbors.size() == 1)
-		{
-			eye.real = true;
-		}
-		BoardType color = null;
-		boolean undefined = false;
-		for (Cluster cluster : eye.neighbors) {
-			Chain chain = (Chain) cluster;
-			if (color == null)
-				color = chain.color;
-			else if (color != chain.color)
-				undefined = true;
-		}
-		Group group = null;
-		if (!undefined) {
-			eye.color = color;
-			group = eye.group;
-			
-			if (group == null) {
-				group = eye.group = new Group();
-				groups.add(group);
-			}
-			group.eyes.add(eye);
-			for (Cluster cluster : eye.neighbors) {
-				Chain chain = (Chain) cluster;
-				group.chains.add(chain);
-			}
-		}
-		
-		// logger.info("eye: " + eye + ", group: " + group);
-	}
-	
-	private void analyzeGroup(Group group) {
-		// logger.info("analyzeGroup: " + group);
-	}
-	
-	/**
-	 * Calculate the chinese score of the position.
-	 * This method assumes that all dead stones are already removed, i.e. all 
-	 * stones on the board are considered alive, and territories containing stones of both colors are neutral.
-	 * @return The chinese score of the position.
-	 */
+	@Override
 	public int chineseScore(double[][] territory) 
 	{
 		/*
-		if (logger.isLoggable(Level.INFO))
-			logger.info("chineseScore: \n" + this);
-	    */
+			if (logger.isLoggable(Level.INFO))
+				logger.info("chineseScore: \n" + this);
+		 */
 		int score = 0;
-		visited++;
-		int i, j;
-		for (i = 0; i < size; i++) {
-			for (j = 0; j < size; j++) {
-				if (tmpBoard[i][j] == visited) {
-					continue;
+		
+		for (Cluster cluster : clusters) {
+			switch (cluster.color) {
+			case BLACK:
+				score += cluster.size();
+				break;
+				
+			case WHITE:
+				score -= cluster.size();
+				break;
+
+			case EMPTY:
+				score += scoreEmpty(cluster);
+				break;
+			}
+		}
+		
+		if (territory != null) {
+			for (Cluster cluster : clusters) {
+				double v = 0;
+				switch (cluster.color) {
+				case BLACK:
+					v = cluster.size();
+					break;
+					
+				case WHITE:
+					v = -cluster.size();
+					break;
+
+				case EMPTY:
+					v = Math.signum(scoreEmpty(cluster)) * cluster.size();
+					break;
 				}
-				else {
-					switch(boardRep[i][j]) {
-					case BLACK:
-						score++;
-						if (territory != null)
-							territory[i][j] += 1;
-						break;
-					case WHITE:
-						score--;
-						if (territory != null)
-							territory[i][j] -= 1;
-						break;
-					case EMPTY:
-						score += scoreEmpty(new Point(i, j), territory);
-						break;
-					}
+				
+				for (Point p : cluster.getPoints()) {
+					territory[p.getX()][p.getY()] = v;
 				}
 			}
 		}
+		
 		return score;
 	}
 
-	public AnalysisGoban clone() 
-	{
-		AnalysisGoban goban = new AnalysisGoban();
-		goban.copy(this);
-		return goban;
+	@Override
+	public void clear() {
+		
+	}
+	
+	@Override
+	public AnalysisGoban clone() {
+		AnalysisGoban model = new AnalysisGoban();
+		model.copy(this);
+		return model;
 	}
 
-	private void copy(AnalysisGoban goban)
-	{
-		super.copy(goban);
-		this.movingColor = goban.movingColor;
-		initAnalysis();
-	}
-	
-	public int getAtariCount(BoardType movingColor) 
-	{
-		int count = 0;
-		//logger.info("Ataricount: " + lastChainId);
-		for (int i=0; i<lastChainId; i++) {
-			Chain chain = chains[i];
-			//logger.info("Ataricount: " + chain);
-			if (chain.color == movingColor && chain.numLiberties == 1) {
-				//logger.info("Atari: " + movingColor + " " + chain);
-				count += chain.size;
-			}
+	@Override
+	public void copy(Goban m) {
+		if (m instanceof AnalysisGoban) {
+			this.boardRep = ((AnalysisGoban) m).boardRep.clone();
 		}
-		return count;
+		else {
+			init(m);
+		}
 	}
-	
+
+	public int getAtariCount(BoardType movingColor) {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+
+	final BoardRep getBoardRep(int x, int y) {
+		return boardRep[x*boardSize+y];
+	}
+
+	final BoardRep getBoardRep(Point p) {
+		return boardRep[p.getX()*boardSize+p.getY()];
+	}
+
 	public Chain getChain(Point p) {
-		int id = chainMap[p.getX()*size + p.getY()];
-		if (id < 0) return null;
-		else return chains[id];
+		return (Chain) boardRep[p.getX()*boardSize + p.getY()].cluster;
+	}
+	
+	public Eye getEye(Point p) {
+		return (Eye) boardRep[p.getX()*boardSize + p.getY()].cluster;
 	}
 
-	public Eye getEye(Point p) 
-	{
-		int id = eyeMap[p.getX()*size + p.getY()];
-		if (id < 0) return null;
-		else return eyes[id];
+	@Override
+	public BoardType getStone(int x, int y) {
+		return getBoardRep(x, y).color;
 	}
 
-	public Vector<Point> getRemoved() 
-	{
-		return removed;
+	private void init(Goban m) {
+		this.boardSize = m.getBoardSize();
+		initBoard();
+		
+		for (int x=0; x<boardSize; x++) {
+			for (int y=0; y<boardSize; y++) {
+				BoardType c = m.getStone(x, y);
+				if (c != BoardType.EMPTY) putStone(x, y, c);
+			}
+		}
+	}
+	
+	
+	private void initBoard() {
+		allPoints = new ArrayList<Point>(boardSize*boardSize);
+		for (Point p : Point.all(boardSize)) {
+			allPoints.add(p);
+		}
+		boardRep = new BoardRep[boardSize*boardSize];
+		BoardRep empty = new BoardRep(BoardType.EMPTY, new Eye(allPoints));
+		Arrays.fill(boardRep, empty);
+	}
+
+	public boolean isOneSpaceEye(Point p) {
+		Cluster c = getBoardRep(p).cluster;
+		return c.getColor() == BoardType.EMPTY && c.getPoints().size() == 1;
 	}
 	
 	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = super.hashCode();
-		result = prime * result + ((movingColor == null) ? 0 : movingColor.hashCode());
-		return result;
+	public boolean move(int x, int y, BoardType color) {
+		return move(new Point(x, y), color);
 	}
 
 	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (!super.equals(obj))
+	public boolean move(Point p, BoardType color) {
+		BoardRep stone = getBoardRep(p);
+		if (stone.color != BoardType.EMPTY)
 			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		AnalysisGoban other = (AnalysisGoban) obj;
-		if (movingColor != other.movingColor)
-			return false;
-		if (!super.equals(other))
-			return false;
-		return true;
-	}
-
-	private void initAnalysis() 
-	{
-		visited++;
-		lastChainId = 0;
-		lastEyeId = 0;
-		chainMap = new int[getBoardSize()*getBoardSize()];
-		eyeMap = new int[getBoardSize()*getBoardSize()];
-		Arrays.fill(chainMap, -1);
-		Arrays.fill(eyeMap, -1);
-		chains = new Chain[INITIAL_CHAIN_SIZE];
-		eyes = new Eye[INITIAL_CHAIN_SIZE];
-		groups = new HashSet<Group>();
-				
-		for (int i=0; i<size; i++) {
-			for (int j=0; j<size; j++) {
-				if (boardRep[i][j] != BoardType.EMPTY && chainMap[i*size+j] < 0) {
-					addChain(new Point(i, j));
-				}
-				if (boardRep[i][j] == BoardType.EMPTY && eyeMap[i*size+j] < 0) {
-					addEye(new Point(i, j));
+		else
+			stone.cluster.remove(p);
+		lastMove = p;
+		
+		
+		
+		List<BoardRep> emptyNeighbors = new ArrayList<BoardRep>(4);
+		List<Chain> friendlyNeighbors = new ArrayList<Chain>(4);
+		List<Point> enemyNeighbors = new ArrayList<Point>(4);
+		
+		for (Point q : p.neighbors(this)) {
+			BoardRep rep = getBoardRep(q);
+			if (rep.color == BoardType.EMPTY) { 
+				if (!emptyNeighbors.contains(rep)) emptyNeighbors.add(rep);
+			}
+			else if (rep.color == color) {
+				if (!friendlyNeighbors.contains(rep.cluster)) friendlyNeighbors.add((Chain) rep.cluster);
+			}
+			else {
+				enemyNeighbors.add(q);
+			}
+		}
+		
+		// place stone
+		Chain myChain = null;
+		if (friendlyNeighbors.size() == 0) {
+			// create new Chain
+			myChain = new Chain(color, p);
+			setBoardRep(p, new BoardRep(color, myChain));
+		}
+		else {
+			myChain = friendlyNeighbors.remove(0);
+			myChain.addPoint(p);
+			for (Chain chain : friendlyNeighbors) {
+				myChain.join(chain);
+			}
+			setBoardRep(p, new BoardRep(color, myChain));
+		}
+		
+		for (Point q : enemyNeighbors) {
+			Chain chain = (Chain) getBoardRep(q).cluster;
+			chain.removeLiberty(p);
+			if (chain.liberties.size() == 0) {
+				myChain.addNeighbor(removeChain(chain));
+			}
+			else {
+				myChain.removeLiberty(q);
+				myChain.addNeighbor(chain);
+				chain.addNeighbor(myChain);
+			}
+		}
+		
+		if (emptyNeighbors.size() + friendlyNeighbors.size() + enemyNeighbors.size() < 4) {
+			for (BoardRep eye : emptyNeighbors) {	
+				Collection<Cluster> newEyes = checkIfPartioned(eye, p);
+				for (Cluster newEye : newEyes) {
+					myChain.addNeighbor(newEye);
 				}
 			}
 		}
 		
-		for (int i=0; i < lastEyeId; i++) {
-			Eye eye = eyes[i];
-			analyzeEye(eye);
-		}
-		
-		for (Group group : groups) {
-			analyzeGroup(group);
-		}
-	}
-
-	public boolean isCapture(Point p, BoardType movingColor) 
-	{
-		
-		//int captured = 0;
-		if (getStone(p) != BoardType.EMPTY) return false;
-	
-		BoardType enemy = movingColor.opposite();
-		setStone(p, movingColor);
-		for (Point q : new Neighborhood(this, p)) {
-			visited++;
-			if (getStone(q) == enemy)
-				if (countLiberties(q) == 0) {
-					setStone(p, BoardType.EMPTY);
-					return true;
-				}
-		}
-		setStone(p, BoardType.EMPTY);
-		return false;	
-	}
-
-	public boolean isIllegalKoCapture(Set<Goban> history, Point p, BoardType movingColor) {
-		SimpleGoban goban = (SimpleGoban) clone();
-		return history.contains(goban.move(p, movingColor));
-	}
-
-	public boolean isOneSpaceEye(Point p) 
-	{
-		Iterator<Point> n = (new Neighborhood(this, p)).iterator();
-		p = n.next();
-		BoardType color = getStone(p);
-		if (color == BoardType.EMPTY) return false;
-		while (n.hasNext()) {
-			p = n.next();
-			if (getStone(p) != color) 
-				return false;	
-		}
 		return true;
 	}
 
-	public boolean isValidMove(Point p, BoardType movingColor) {
-		if (getStone(p) != BoardType.EMPTY)
-			return false;
-		else { 
-			if (isCapture(p, movingColor))
-				return true;
-			
-			setStone(p, movingColor);
-			int liberties = countLiberties(p);
-			setStone(p, BoardType.EMPTY);
-			
-			return liberties > 0;
+	@Override
+	public Goban newInstance() {
+		return new AnalysisGoban(getBoardSize());
+	}
+
+	@Override
+	public void putStone(int x, int y, BoardType color) {
+		putStone(new Point(x, y), color);
+	}
+	
+	@Override
+	public void putStone(Point p, BoardType color) {
+		BoardRep stone = getBoardRep(p);
+		stone.cluster.remove(p);
+		
+		List<BoardRep> emptyNeighbors = new ArrayList<BoardRep>(4);
+		List<Chain> friendlyNeighbors = new ArrayList<Chain>(4);
+		List<Point> enemyNeighbors = new ArrayList<Point>(4);
+		
+		for (Point q : p.neighbors(this)) {
+			BoardRep rep = getBoardRep(q);
+			if (rep.color == BoardType.EMPTY) { 
+				if (!emptyNeighbors.contains(rep)) emptyNeighbors.add(rep);
+			}
+			else if (rep.color == color) {
+				if (!friendlyNeighbors.contains(rep.cluster)) friendlyNeighbors.add((Chain) rep.cluster);
+			}
+			else {
+				enemyNeighbors.add(q);
+			}
+		}
+		
+		// place stone
+		Chain myChain = null;
+		if (friendlyNeighbors.size() == 0) {
+			// create new Chain
+			myChain = new Chain(color, p);
+			setBoardRep(p, new BoardRep(color, myChain));
+		}
+		else {
+			myChain = friendlyNeighbors.remove(0);
+			myChain.addPoint(p);
+			for (Chain chain : friendlyNeighbors) {
+				myChain.join(chain);
+			}
+			setBoardRep(p, new BoardRep(color, myChain));
+		}
+		
+		for (Point q : enemyNeighbors) {
+			Chain chain = (Chain) getBoardRep(q).cluster;
+			chain.removeLiberty(p);
+			myChain.removeLiberty(q);
+			myChain.addNeighbor(chain);
+			chain.addNeighbor(myChain);
+		}
+		
+		if (emptyNeighbors.size() + friendlyNeighbors.size() + enemyNeighbors.size() < 4) {
+			for (BoardRep eye : emptyNeighbors) {	
+				Collection<Cluster> newEyes = checkIfPartioned(eye, p);
+				for (Cluster newEye : newEyes) {
+					myChain.addNeighbor(newEye);
+				}
+			}
 		}
 	}
 
-	private boolean isVisited(Point p, int visited) 
-	{
-		return tmpBoard[p.getX()][p.getY()] == visited;
-	}
-	
-	public boolean move(int x, int y)
-	{
-		boolean result = super.move(x, y, movingColor);
-		updateChains(x, y, movingColor);
-		return result;
-	}
-
-	public boolean move(Point p)
-	{
-		return move(p.getX(), p.getY());
-	}
-	
-	public int scoreEmpty(Point p, double[][] territory) 
-	{
-		int score=0;
-		boolean touchBlack = false;
-		boolean touchWhite = false;
-		Queue<Point> queue = new LinkedList<Point>();
-		List<Point> area = new ArrayList<Point>();
-		queue.add(p);
+	private Collection<Cluster> checkIfPartioned(BoardRep rep, Point p) {
+		Collection<Cluster> newEyes = new ArrayList<Cluster>(4);
+		Collection<Point> points = new HashSet<Point>();
+		Queue<Point> queue = new PriorityQueue<Point>();
+		Set<Cluster> neighbors; 
 		
-		while (!queue.isEmpty()) {
-			p = queue.poll();
-			area.add(p);
-			score++;
-			tmpBoard[p.getX()][p.getY()] = visited;
-			for (Point n : new Neighborhood(this, p)) {
-				if (tmpBoard[n.getX()][n.getY()] == visited) continue;
-				else {
-					switch(boardRep[n.getX()][n.getY()]) {
-					case BLACK:
-						touchBlack = true;
-						break;
-					case WHITE:
-						touchWhite = true;
-						break;
-					case EMPTY:
-						queue.add(n);
-						tmpBoard[n.getX()][n.getY()] = visited;
-						break;
+		newEyes.add(rep.cluster);
+		rep.cluster.addNeighbor(getBoardRep(p).cluster);
+		do {
+			neighbors = new HashSet<Cluster>();
+			points.clear();
+			if (rep.cluster.getPoints().size() > 0)
+				queue.add(rep.cluster.getPoint());
+			while (queue.size() > 0) {
+				Point q = queue.remove();
+				points.add(q);
+				for (Point r : q.neighbors(this)) {
+					if (rep.cluster.getPoints().contains(r) && !points.contains(r) && !queue.contains(r)) queue.add(r);
+					else {
+						BoardRep neighbor = getBoardRep(r);
+						if (neighbor.color != BoardType.EMPTY) {
+							neighbors.add(neighbor.cluster);
+						}
 					}
 				}
 			}
-		}
-		//logger.info("scoreEmpty " + p + ": " + score);
-		if (touchBlack && touchWhite)
-			return 0;
-		else if (touchBlack) {
-			for (Point q : area) {
-				if (territory != null)
-					territory[q.getX()][q.getY()] += 1.0;
+			if (points.size() != rep.cluster.getPoints().size()) {
+				rep.cluster.copy();
+				rep.cluster.points.removeAll(points);
+				BoardRep empty = new BoardRep(BoardType.EMPTY, new Eye(points, neighbors));
+				newEyes.add(empty.cluster);
+				for (Point r : points) {
+					setBoardRep(r, empty);
+				}
 			}
-			return score;
-		}
-		else if (touchWhite) {
-			for (Point q : area) {
-				if (territory != null)
-					territory[q.getX()][q.getY()] -= 1.0;
+		} while (points.size() != rep.cluster.getPoints().size());
+		
+		return newEyes;
+	}
+
+	private Cluster removeChain(Chain chain) {
+		Eye eye = new Eye(chain.getPoints(), chain.getNeighbors());
+		for (Point p : chain.getPoints()) {
+			removed.add(p);
+			setBoardRep(p, new BoardRep(BoardType.EMPTY, eye));
+			for (Point q : p.neighbors(this)) {
+				BoardRep rep = getBoardRep(q);
+				if (rep.cluster.color == chain.color.opposite()) {
+					Chain other = (Chain) rep.cluster;
+					other.addLiberty(q);
+				}
 			}
-			return -score;
 		}
-		else throw new IllegalStateException("This should not happen: \n" + toString());
+		addCaptureStones(chain.color, chain.size());
+		return eye;
 	}
 
-	private void setVisited(Point p, int visited) 
-	{
-		tmpBoard[p.getX()][p.getY()] = visited;
+	private int scoreEmpty(Cluster eye) {
+		boolean touchBlack = false;
+		boolean touchWhite = false;
+		
+		for (Cluster c : eye.neighbors) {
+			if (c.color == BoardType.BLACK) touchBlack = true;
+			if (c.color == BoardType.WHITE) touchWhite = true;
+		}
+		if (touchWhite && touchBlack) return 0;
+		else if (touchBlack) return  eye.getPoints().size();
+		else if (touchWhite) return -eye.getPoints().size();
+		else return 0;
 	}
 
-	private void updateChains(int x, int y, BoardType color) 
-	{
-		// FIXME - this is not efficient
-		// logger.info("updateChains " + x + " " + y + " " + getStone(x, y));
-		initAnalysis();
+	private final void setBoardRep(Point p, BoardRep rep) {
+		boardRep[p.getX()*boardSize+p.getY()] = rep;
 	}
 
+	@Override
+	public void setBoardSize(int size) {
+		// TODO Auto-generated method stub
+		throw new RuntimeException("not yet implemented");
+	}
+
+	@Override
+	public Goban transform(Symmetry s) {
+		int size = getBoardSize();
+		Goban m = newInstance();
+
+		Point.BoardIterator it = new Point.BoardIterator(size);
+
+		while (it.hasNext()) {
+			Point p = (Point) it.next();
+			BoardType stone = getStone(p);
+			if (stone != BoardType.EMPTY) {
+				Point pt = s.transform(p, size);
+				m.putStone(pt, s.transform(stone));
+			}
+		}
+		return m;
+
+	}
+
+	@Override
+	public
+	int zobristHash() {
+		if (_hash == 0) {
+			int n = 0;
+
+			for (int i=0; i<boardSize*boardSize; i++) {
+				BoardType stone = boardRep[i].cluster.color;
+				if (stone != BoardType.EMPTY) {
+					n++;
+					if (stone == BoardType.BLACK)
+						_hash += zobrist[i];
+					else
+						_hash -= zobrist[i];
+				}
+			}
+			_hash = (_hash & 0x01ffffff) | ((n & 0xfe) << (32 - 7));
+		}
+		return _hash;
+	}	
 }

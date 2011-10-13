@@ -20,6 +20,8 @@ package de.cgawron.go;
 
 import de.cgawron.go.Goban.BoardType;
 import de.cgawron.go.Point;
+
+import java.util.Collection;
 import java.util.EventObject;
 import java.util.Vector;
 
@@ -27,7 +29,7 @@ public class GobanEvent extends EventObject
 {
 	private static final long serialVersionUID = -3305394382897241209L;
 
-	protected Vector<Point> points;
+	protected Collection<Point> points;
 	protected BoardType color;
 
 	/** GobanEvent constructor comment. */
@@ -46,7 +48,7 @@ public class GobanEvent extends EventObject
 	}
 
 	/** GobanEvent constructor comment. */
-	public GobanEvent(Goban source, Vector<Point> points)
+	public GobanEvent(Goban source, Collection<Point> points)
 	{
 		super(source);
 		this.points = points;
@@ -60,7 +62,7 @@ public class GobanEvent extends EventObject
 	 */
 	public void addPoint(Point point)
 	{
-		points.addElement(point);
+		points.add(point);
 	}
 
 	/**
@@ -88,7 +90,7 @@ public class GobanEvent extends EventObject
 	 * 
 	 * @return java.util.Vector
 	 */
-	public Vector<Point> getPoints()
+	public Collection<Point> getPoints()
 	{
 		return points;
 	}

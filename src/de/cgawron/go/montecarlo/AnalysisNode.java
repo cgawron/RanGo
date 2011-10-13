@@ -32,11 +32,14 @@ class AnalysisNode implements Comparable<AnalysisNode>
 	double value;
 
 	AnalysisNode parent;
+	//OldAnalysisGoban goban;
 	AnalysisGoban goban;
 	Point move;
 
 	Set<AnalysisNode> children;
 	Map<Point, Miai> miaiMap;
+
+	BoardType movingColor;
 	
 	public AnalysisNode(AnalysisNode analysisNode) 
 	{
@@ -55,7 +58,9 @@ class AnalysisNode implements Comparable<AnalysisNode>
 	
 	public AnalysisNode(Goban goban, BoardType movingColor, double komi) 
 	{
-		this.goban = new AnalysisGoban(goban, movingColor);
+		//this.goban = new OldAnalysisGoban(goban, movingColor);
+		this.goban = new AnalysisGoban(goban);
+		this.movingColor = movingColor;
 		this.boardSize = goban.getBoardSize();
 		this.komi = komi;
 		this.miaiMap = new GobanMap<Miai>(this.boardSize);
@@ -124,7 +129,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 			if (group.isAlive()) return 0;
 			else {
 				// FIXME
-				if (eye.size < 7 && eye.isVitalPoint(move))
+				if (eye.getPoints().size() < 7 && eye.isVitalPoint(move))
 					suitability *= 5;
 			}
 		}
@@ -152,11 +157,11 @@ class AnalysisNode implements Comparable<AnalysisNode>
 	{
 		AnalysisNode child = createChild();
 		child.move = p;
-		child.goban.move(p);
+		child.goban.move(p, movingColor);
 		updateMiai();
 		child.suitability = child.calculateStaticSuitability();
 		//logger.info("createChild: \n" + child);
-		child.goban.movingColor = goban.movingColor.opposite();
+		child.movingColor = movingColor.opposite();
 		return child;
 	}
 	
@@ -165,7 +170,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		//logger.info("creating pass move");
 		AnalysisNode child = createChild();
 		child.move = null;
-		child.goban.movingColor = goban.movingColor.opposite();
+		child.movingColor = movingColor.opposite();
 		return child;
 	}
 	
@@ -251,8 +256,8 @@ class AnalysisNode implements Comparable<AnalysisNode>
 	
 	private int getSavedStones() 
 	{
-		int parentAtari = parent.getAtariCount(parent.goban.movingColor);		
-		int myAtari = getAtariCount(parent.goban.movingColor);
+		int parentAtari = parent.getAtariCount(parent.movingColor);		
+		int myAtari = getAtariCount(parent.movingColor);
 		
 		// logger.info("getSavedStones: " + move + ": " + parentAtari + " - " + myAtari);
 		return parentAtari - myAtari;
@@ -399,7 +404,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 				+ ", moveNo=" + moveNo + ", value=" + getValue() 
 				+ ", score=" + getScore()
 			    + ", variance=" + getVariance()
-				+ ", movingColor=" + goban.movingColor
+				+ ", movingColor=" + movingColor
 				+ "\nvisits=" + getVisits()
 				+ ", blackAtari=" + blackAtari + ", whiteAatari=" + whiteAtari
 				+ ", suitability=" + suitability + "\n" + goban + "]";

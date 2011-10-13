@@ -19,13 +19,7 @@
 package de.cgawron.go.sgf;
 
 import java.io.PrintWriter;
-import java.util.Iterator;
-import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import de.cgawron.go.Goban;
-import de.cgawron.go.Goban.BoardType;
-import de.cgawron.go.Point;
 
 /**
  * An instance of this class represents a node in a sgf game tree.
@@ -34,8 +28,7 @@ import de.cgawron.go.Point;
  */
 public class CollectionRoot extends RootNode
 {
-	private static Logger logger = Logger.getLogger(CollectionRoot.class
-			.getName());
+	private static Logger logger = Logger.getLogger(CollectionRoot.class.getName());
 
 	public CollectionRoot(GameTree gameTree)
 	{
@@ -51,5 +44,4 @@ public class CollectionRoot extends RootNode
 			node.write(out);
 		}
 	}
-
 }

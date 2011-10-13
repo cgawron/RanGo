@@ -46,6 +46,8 @@ public class Point implements Comparable<Point>
 	@XmlAttribute
 	protected short y;
 
+	private Neighborhood neighbors;
+	
 	/**
 	 * Default constructor. The constructed point is initialized with 0 as x and
 	 * y coordinates.
@@ -291,6 +293,12 @@ public class Point implements Comparable<Point>
 		}
 		
 		return (Iterable<Point>) ALL[boardSize];
+	}
+
+	public Iterable<Point> neighbors(Goban goban) {
+		if (neighbors == null)
+			neighbors = new Neighborhood(goban, this);
+		return neighbors;
 	}
 
 }

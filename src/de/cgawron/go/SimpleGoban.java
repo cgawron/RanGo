@@ -16,7 +16,10 @@
 
 package de.cgawron.go;
 
-import java.util.Collection;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Queue;
 import java.util.Vector;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -28,20 +31,12 @@ import java.util.logging.Logger;
  */
 public class SimpleGoban extends AbstractGoban
 {
-	protected int size = 0;
 	protected BoardType[][] boardRep;
 	protected int[][] tmpBoard;
 	private int[] _hash;
 
 	protected int visited;
 	int numStones = 0;
-	private Point lastMove;
-	private int whiteCaptured;
-	private int blackCaptured;
-	protected Vector<Point> removed = new Vector<Point>();
-
-	protected Collection<GobanListener> listeners = new java.util.ArrayList<GobanListener>();
-
 	protected static Logger logger = Logger.getLogger(SimpleGoban.class.getName());
 
 	/** Create a SimpleGoban with default board size of 19x19. */
@@ -74,54 +69,54 @@ public class SimpleGoban extends AbstractGoban
 		setBoardSize((int) size);
 	}
 
-	public int __hash(Symmetry s)
+	/**
+	 * Calculate the chinese score of the position.
+	 * This method assumes that all dead stones are already removed, i.e. all 
+	 * stones on the board are considered alive, and territories containing stones of both colors are neutral.
+	 * @return The chinese score of the position.
+	 */
+	public int chineseScore(double[][] territory) 
 	{
-		Point.BoardIterator it = new Point.BoardIterator(size);
-		int h = 0;
-		int n = 0;
-
-		while (it.hasNext()) {
-			Point p = (Point) it.next();
-			BoardType stone = getStone(p);
-			if (stone != BoardType.EMPTY) {
-				n++;
-				Point pt = s.transform(p, size);
-				int z = zobrist[pt.getY() * size + pt.getX()];
-				// logger.info("__hash: " + p + " " + pt + ": " + stone + " " +
-				// n + " " + z + " " + (-z));
-				if (s.transform(stone) == BoardType.BLACK)
-					h += z;
-				else
-					h -= z;
+		/*
+		if (logger.isLoggable(Level.INFO))
+			logger.info("chineseScore: \n" + this);
+	    */
+		int score = 0;
+		visited++;
+		int i, j;
+		for (i = 0; i < boardSize; i++) {
+			for (j = 0; j < boardSize; j++) {
+				if (tmpBoard[i][j] == visited) {
+					continue;
+				}
+				else {
+					switch(boardRep[i][j]) {
+					case BLACK:
+						score++;
+						if (territory != null)
+							territory[i][j] += 1;
+						break;
+					case WHITE:
+						score--;
+						if (territory != null)
+							territory[i][j] -= 1;
+						break;
+					case EMPTY:
+						score += scoreEmpty(new Point(i, j), territory);
+						break;
+					}
+				}
 			}
 		}
-		// if (sym & 8 != 0) h ^= 0xffffffff;
-		h = (h & 0x01ffffff) | ((n & 0xfe) << (32 - 7));
-		return h;
+		return score;
 	}
-
-	public int _hash(Symmetry s)
-	{
-		// int h = (_hash[s.toInt()] & 0x01ffffff) | ((numStones & 0xfe) <<
-		// (32-7));
-		// assert h == __hash(s) : "hashes differ: " + this + ": " + numStones +
-		// ": " + h + " " + __hash(s);
-		// return h;
-		return __hash(s);
-	}
-
-	/** addGobanListener method comment. */
-	public void addGobanListener(GobanListener l)
-	{
-		listeners.add(l);
-	}
-
+	
 	public void clear()
 	{
 		int i;
 		int j;
-		for (i = 0; i < size; i++)
-			for (j = 0; j < size; j++)
+		for (i = 0; i < boardSize; i++)
+			for (j = 0; j < boardSize; j++)
 				setStone(i, j, BoardType.EMPTY);
 		numStones = 0;
 		fireModelChanged();
@@ -146,10 +141,10 @@ public class SimpleGoban extends AbstractGoban
 		int j;
 		if (m instanceof SimpleGoban) {
 			SimpleGoban sm = (SimpleGoban) m;
-			setBoardSizeNoInit(sm.size);
+			setBoardSizeNoInit(sm.boardSize);
 
-			for (i = 0; i < size; i++)
-				System.arraycopy(sm.boardRep[i], 0, boardRep[i], 0, size);
+			for (i = 0; i < boardSize; i++)
+				System.arraycopy(sm.boardRep[i], 0, boardRep[i], 0, boardSize);
 
 			System.arraycopy(sm._hash, 0, _hash, 0, 16);
 			whiteCaptured = sm.whiteCaptured;
@@ -157,8 +152,8 @@ public class SimpleGoban extends AbstractGoban
 			numStones = sm.numStones;
 		} else {
 			setBoardSize(m.getBoardSize());
-			for (i = 0; i < size; i++)
-				for (j = 0; j < size; j++)
+			for (i = 0; i < boardSize; i++)
+				for (j = 0; j < boardSize; j++)
 					setStone(i, j, m.getStone(i, j));
 
 			whiteCaptured = m.getWhiteCaptured();
@@ -174,9 +169,8 @@ public class SimpleGoban extends AbstractGoban
 		tmpBoard[x][y] = visited;
 		int liberties = (int) 0;
 
-		NeighborhoodEnumeration ne = new NeighborhoodEnumeration(this, new Point(x, y));
-		while (ne.hasMoreElements()) {
-			Point q = (Point) ne.nextElement();
+		Point p = new Point(x, y);
+		for (Point q : p.neighbors(this)) {
 			if (tmpBoard[q.getX()][q.getY()] != visited) {
 				tmpBoard[q.getX()][q.getY()] = visited;
 				if (getStone(q) == BoardType.EMPTY)
@@ -211,10 +205,10 @@ public class SimpleGoban extends AbstractGoban
 			return true;
 		else if (o instanceof SimpleGoban) {
 			SimpleGoban goban = (SimpleGoban) o;
-			if (goban.size != this.size) return false;
+			if (goban.boardSize != this.boardSize) return false;
 			int i, j;
-			for (i = 0; i < size; i++)
-				for (j = 0; j < size; j++)
+			for (i = 0; i < boardSize; i++)
+				for (j = 0; j < boardSize; j++)
 					if (boardRep[i][j] != goban.boardRep[i][j])
 						return false;
 			return true;
@@ -227,125 +221,13 @@ public class SimpleGoban extends AbstractGoban
 			 * (getStone(p) != goban.getStone(p)) return false; }
 			 */
 			int i, j;
-			for (i = 0; i < size; i++)
-				for (j = 0; j < size; j++)
+			for (i = 0; i < boardSize; i++)
+				for (j = 0; j < boardSize; j++)
 					if (getStone(i, j) != goban.getStone(i, j))
 						return false;
 			return true;
 		}
 		return false;
-	}
-
-	public boolean equals(Object o, Symmetry s)
-	{
-		if (o instanceof Goban) {
-			Goban goban = (Goban) o;
-			Point.BoardIterator it = new Point.BoardIterator(size);
-
-			while (it.hasNext()) {
-				Point p = (Point) it.next();
-				Point pt = s.transform(p, size);
-				if (goban.getStone(p) != s.transform(getStone(pt)))
-					return false;
-			}
-			return true;
-		}
-		return false;
-	}
-
-	/**
-	 * Insert the method's description here. Creation date: (03/25/00 16:07:59)
-	 * 
-	 * @param x
-	 *            int
-	 * @param y
-	 *            int
-	 * @param c
-	 *            goban.BoardType
-	 */
-	protected void fireModelChanged()
-	{
-		GobanEvent e = null;
-		// Process the listeners last to first, notifying
-		// those that are interested in this event
-		for (GobanListener listener : listeners) {
-			if (logger.isLoggable(Level.FINE))
-				logger.fine("Notifying listener ...");
-			// Lazily create the event:
-			if (e == null)
-				e = new GobanEvent(this);
-			listener.modelChanged(e);
-		}
-	}
-
-	/**
-	 * Insert the method's description here. Creation date: (03/25/00 16:07:59)
-	 * 
-	 * @param x
-	 *            int
-	 * @param y
-	 *            int
-	 * @param c
-	 *            goban.BoardType
-	 */
-	protected void fireStoneAdded(int x, int y, BoardType c)
-	{
-		GobanEvent e = null;
-		// Process the listeners last to first, notifying
-		// those that are interested in this event
-		for (GobanListener listener : listeners) {
-			if (logger.isLoggable(Level.FINE))
-				logger.fine("Notifying listener ...");
-			// Lazily create the event:
-			if (e == null)
-				e = new GobanEvent(this, x, y, c);
-			listener.stoneAdded(e);
-		}
-	}
-
-	/**
-	 * Insert the method's description here. Creation date: (03/25/00 16:07:59)
-	 * 
-	 * @param x
-	 *            int
-	 * @param y
-	 *            int
-	 * @param c
-	 *            goban.BoardType
-	 */
-	protected void fireStonesRemoved(Vector<Point> removed)
-	{
-		// Guaranteed to return a non-null array
-		GobanEvent e = null;
-		// Process the listeners last to first, notifying
-		// those that are interested in this event
-		for (GobanListener listener : listeners) {
-			// Lazily create the event:
-			if (e == null)
-				e = new GobanEvent(this, removed);
-			listener.stonesRemoved(e);
-		}
-	}
-
-	/**
-	 * Insert the method's description here. Creation date: (04/18/00 23:51:16)
-	 * 
-	 * @return int
-	 */
-	public int getBlackCaptured()
-	{
-		return blackCaptured;
-	}
-
-	/** getBoardSize method comment. */
-	final public int getBoardSize()
-	{
-		return size;
-	}
-
-	public Point getLastMove()
-	{
-		return lastMove;
 	}
 
 	/** getStone method comment. */
@@ -358,21 +240,6 @@ public class SimpleGoban extends AbstractGoban
 	public BoardType getStone(Point p)
 	{
 		return boardRep[p.getX()][p.getY()];
-	}
-
-	/**
-	 * Insert the method's description here. Creation date: (04/18/00 23:50:17)
-	 * 
-	 * @return int
-	 */
-	public int getWhiteCaptured()
-	{
-		return whiteCaptured;
-	}
-
-	public int hashCode()
-	{
-		return _hash(Symmetry.IDENTITY);
 	}
 
 	public boolean move(int x, int y, BoardType color)
@@ -388,17 +255,15 @@ public class SimpleGoban extends AbstractGoban
 
 		Point p = new Point(x, y);
 		lastMove = p;
-		NeighborhoodEnumeration ne = new NeighborhoodEnumeration(this, p);
-		while (ne.hasMoreElements()) {
-			p = (Point) ne.nextElement();
+		for (Point q : p.neighbors(this)) {
 			visited++;
-			if (getStone(p) == enemy)
-				if (countLiberties(p) == 0) {
-					removeChain(p, removed);
+			if (getStone(q) == enemy)
+				if (countLiberties(q) == 0) {
+					removeChain(q, removed);
 				}
 		}
 		visited++;
-		p = new Point(x, y);
+
 		boolean legal = true;
 		if (countLiberties(p) == 0) {
 			removeChain(p, removed);
@@ -415,17 +280,6 @@ public class SimpleGoban extends AbstractGoban
 		return move(x, y, color);
 	}
 
-	/** move method comment. */
-	public boolean move(Point p, BoardType color)
-	{
-		return move(p.getX(), p.getY(), color);
-	}
-
-	public boolean move(Point p, BoardType color, int moveNo)
-	{
-		return move(p.getX(), p.getY(), color, moveNo);
-	}
-
 	public Goban newInstance()
 	{
 		return new SimpleGoban(getBoardSize());
@@ -436,12 +290,6 @@ public class SimpleGoban extends AbstractGoban
 	{
 		setStone(x, y, color);
 		fireStoneAdded(x, y, color);
-	}
-
-	/** putStone method comment. */
-	public void putStone(Point p, BoardType color)
-	{
-		putStone(p.getX(), p.getY(), color);
 	}
 
 	/**
@@ -455,10 +303,8 @@ public class SimpleGoban extends AbstractGoban
 		BoardType c = getStone(p);
 		setStone(p, BoardType.EMPTY);
 		int r = 1;
-		NeighborhoodEnumeration ne = new NeighborhoodEnumeration(this, p);
 
-		while (ne.hasMoreElements()) {
-			Point q = (Point) ne.nextElement();
+		for (Point q : p.neighbors(this)) {
 			if (getStone(q) == c)
 				r += removeChain(q, removed);
 		}
@@ -471,12 +317,58 @@ public class SimpleGoban extends AbstractGoban
 		return r;
 	}
 
-	/** addGobanListener method comment. */
-	public void removeGobanListener(GobanListener l)
+	public int scoreEmpty(Point p, double[][] territory) 
 	{
-		listeners.remove(l);
+		int score=0;
+		boolean touchBlack = false;
+		boolean touchWhite = false;
+		Queue<Point> queue = new LinkedList<Point>();
+		List<Point> area = new ArrayList<Point>();
+		queue.add(p);
+		
+		while (!queue.isEmpty()) {
+			p = queue.poll();
+			area.add(p);
+			score++;
+			tmpBoard[p.getX()][p.getY()] = visited;
+			for (Point n : new Neighborhood(this, p)) {
+				if (tmpBoard[n.getX()][n.getY()] == visited) continue;
+				else {
+					switch(boardRep[n.getX()][n.getY()]) {
+					case BLACK:
+						touchBlack = true;
+						break;
+					case WHITE:
+						touchWhite = true;
+						break;
+					case EMPTY:
+						queue.add(n);
+						tmpBoard[n.getX()][n.getY()] = visited;
+						break;
+					}
+				}
+			}
+		}
+		//logger.info("scoreEmpty " + p + ": " + score);
+		if (touchBlack && touchWhite)
+			return 0;
+		else if (touchBlack) {
+			for (Point q : area) {
+				if (territory != null)
+					territory[q.getX()][q.getY()] += 1.0;
+			}
+			return score;
+		}
+		else if (touchWhite) {
+			for (Point q : area) {
+				if (territory != null)
+					territory[q.getX()][q.getY()] -= 1.0;
+			}
+			return -score;
+		}
+		else throw new IllegalStateException("This should not happen: \n" + toString());
 	}
-
+	
 	/**
 	 * Insert the method's description here. Creation date: (04/18/00 23:51:16)
 	 * 
@@ -491,16 +383,16 @@ public class SimpleGoban extends AbstractGoban
 	/** setBoardSize method comment. */
 	public void setBoardSize(int s)
 	{
-		if (size != s) {
+		if (boardSize != s) {
 			if (logger.isLoggable(Level.FINE))
 				logger.fine("setBoardSize: " + s);
-			size = s;
-			boardRep = new BoardType[size][size];
-			tmpBoard = new int[size][size];
+			boardSize = s;
+			boardRep = new BoardType[boardSize][boardSize];
+			tmpBoard = new int[boardSize][boardSize];
 			_hash = new int[16];
 
 			int i;
-			for (i = 0; i < size; i++) {
+			for (i = 0; i < boardSize; i++) {
 				java.util.Arrays.fill(boardRep[i], BoardType.EMPTY);
 				java.util.Arrays.fill(tmpBoard[i], 0);
 			}
@@ -515,16 +407,16 @@ public class SimpleGoban extends AbstractGoban
 	/** setBoardSize method comment. */
 	protected void setBoardSizeNoInit(int s)
 	{
-		if (size != s) {
+		if (boardSize != s) {
 			if (logger.isLoggable(Level.FINE))
 				logger.fine("setBoardSize: " + s);
-			size = s;
-			boardRep = new BoardType[size][size];
-			tmpBoard = new int[size][size];
+			boardSize = s;
+			boardRep = new BoardType[boardSize][boardSize];
+			tmpBoard = new int[boardSize][boardSize];
 			_hash = new int[16];
 
 			int i;
-			for (i = 0; i < size; i++) {
+			for (i = 0; i < boardSize; i++) {
 				java.util.Arrays.fill(tmpBoard[i], 0);
 			}
 		}
@@ -555,18 +447,18 @@ public class SimpleGoban extends AbstractGoban
 			while (it.hasNext()) {
 				Symmetry s = (Symmetry) it.next();
 				int si = s.toInt();
-				Point pt = s.transform(x, y, size);
+				Point pt = s.transform(x, y, boardSize);
 				if (oc != BoardType.EMPTY) {
 					if (s.transform(oc) == BoardType.BLACK)
-						_hash[si] ^= zobrist[pt.getY() * size + pt.getX()];
+						_hash[si] ^= zobrist[pt.getY() * boardSize + pt.getX()];
 					else
-						_hash[si] ^= ~zobrist[pt.getY() * size + pt.getX()];
+						_hash[si] ^= ~zobrist[pt.getY() * boardSize + pt.getX()];
 				}
 				if (c != BoardType.EMPTY) {
 					if (s.transform(c) == BoardType.BLACK)
-						_hash[si] ^= zobrist[pt.getY() * size + pt.getX()];
+						_hash[si] ^= zobrist[pt.getY() * boardSize + pt.getX()];
 					else
-						_hash[si] ^= ~zobrist[pt.getY() * size + pt.getX()];
+						_hash[si] ^= ~zobrist[pt.getY() * boardSize + pt.getX()];
 				}
 			}
 		}
@@ -598,26 +490,6 @@ public class SimpleGoban extends AbstractGoban
 		whiteCaptured = newWhiteCaptured;
 	}
 
-	public String toString()
-	{
-		StringBuffer s = new StringBuffer(512);
-		int i, j;
-		BoardType p;
-		for (i = 0; i < size; i++) {
-			for (j = 0; j < size; j++) {
-				p = boardRep[i][j];
-				if (p == BoardType.WHITE)
-					s.append("O ");
-				else if (p == BoardType.BLACK)
-					s.append("X ");
-				else
-					s.append(". ");
-			}
-			s.append('\n');
-		}
-		return s.toString();
-	}
-
 	public Goban transform(Symmetry s)
 	{
 		int size = getBoardSize();
@@ -636,6 +508,7 @@ public class SimpleGoban extends AbstractGoban
 		return m;
 	}
 
+	
 	public int zobristHash()
 	{
 		Symmetry.Iterator it = new Symmetry.Iterator();

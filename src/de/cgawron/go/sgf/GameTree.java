@@ -64,7 +64,7 @@ public class GameTree implements TreeModel, PropertyChangeListener,
 	private String name;
 	private RootNode root;
 	// TODO: EventListenerList
-	private final Collection<EventListener> listeners;
+	private final Collection<TreeModelListener> listeners;
 
 	private boolean modified = false;
 	private int noOfDiagrams = -1;
@@ -136,7 +136,7 @@ public class GameTree implements TreeModel, PropertyChangeListener,
 	 */
 	public GameTree()
 	{
-		listeners = new HashSet<EventListener>();
+		listeners = new HashSet<TreeModelListener>();
 		Node root = new RootNode(this);
 		root.setGameTree(this);
 		name = "<empty>";
@@ -152,7 +152,7 @@ public class GameTree implements TreeModel, PropertyChangeListener,
 	 */
 	public GameTree(Node o)
 	{
-		listeners = new HashSet<EventListener>();
+		listeners = new HashSet<TreeModelListener>();
 		name = "<created from node>";
 		init(o);
 	}
@@ -209,7 +209,7 @@ public class GameTree implements TreeModel, PropertyChangeListener,
 	public GameTree(Reader reader) throws Exception
 	{
 		name = "<unknown input>";
-		listeners = new HashSet<EventListener>();
+		listeners = new HashSet<TreeModelListener>();
 		Yylex lexer = new Yylex(reader);
 		Parser parser = new Parser(lexer);
 		logger.info("parsing " + reader + " ...");
@@ -236,10 +236,7 @@ public class GameTree implements TreeModel, PropertyChangeListener,
 	public void addCanonicalDiagrams(int movesPerFigure)
 	{
 		logger.info("adding canonical diagrams");
-		List leafs = getLeafs();
-		Iterator it = leafs.iterator();
-		while (it.hasNext()) {
-			Node leaf = (Node) it.next();
+		for (Node leaf : getLeafs()) {
 			leaf.setDiagram(true);
 		}
 
@@ -820,18 +817,14 @@ public class GameTree implements TreeModel, PropertyChangeListener,
 
 	void fireTreeStructureChanged(TreeModelEvent ev)
 	{
-		Iterator it = listeners.iterator();
-		while (it.hasNext()) {
-			TreeModelListener l = (TreeModelListener) it.next();
-			l.treeStructureChanged(ev);
+		for (TreeModelListener l : listeners) {
+				l.treeStructureChanged(ev);
 		}
 	}
 
 	void fireTreeNodesInserted(TreeModelEvent ev)
 	{
-		Iterator it = listeners.iterator();
-		while (it.hasNext()) {
-			TreeModelListener l = (TreeModelListener) it.next();
+		for (TreeModelListener l : listeners) {
 			l.treeNodesInserted(ev);
 		}
 	}
@@ -868,9 +861,7 @@ public class GameTree implements TreeModel, PropertyChangeListener,
 
 	void fireTreeNodesChanged(TreeModelEvent e)
 	{
-		Iterator it = listeners.iterator();
-		while (it.hasNext()) {
-			TreeModelListener l = (TreeModelListener) it.next();
+		for (TreeModelListener l : listeners) {
 			l.treeNodesChanged(e);
 		}
 	}
@@ -895,13 +886,14 @@ public class GameTree implements TreeModel, PropertyChangeListener,
 	 * An enumeration that is always empty. This is used when an enumeration of
 	 * a leaf node's children is requested.
 	 */
-	public static final Iterator EMPTY_ITERATOR = new Iterator() {
+	public static final Iterator<Node> EMPTY_ITERATOR = new Iterator<Node>() 
+	{
 		public boolean hasNext()
 		{
 			return false;
 		}
 
-		public Object next()
+		public Node next()
 		{
 			throw new NoSuchElementException("No more elements");
 		}
@@ -1083,14 +1075,11 @@ public class GameTree implements TreeModel, PropertyChangeListener,
 
 	public void transform(final Symmetry s)
 	{
-		TreeVisitor<GameTree, Node> visitor = new TreeVisitor<GameTree, Node>(
-				this) {
+		TreeVisitor<GameTree, Node> visitor = new TreeVisitor<GameTree, Node>(this) {
 			@Override
 			protected void visitNode(Node n)
 			{
-				Iterator it = n.entrySet().iterator();
-				while (it.hasNext()) {
-					Map.Entry entry = (Map.Entry) it.next();
+				for (Map.Entry entry : n.entrySet()) {
 					logger.info("Entry: " + entry);
 					Property p = (Property) entry.getValue();
 					Value v = p.getValue();

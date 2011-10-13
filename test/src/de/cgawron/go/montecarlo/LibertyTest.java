@@ -65,7 +65,7 @@ public class LibertyTest {
 		// logger.info(node.toString());
 		
 		Chain chain = node.goban.getChain(move);
-		assertEquals("Testing expected liberties", expectedLiberties, chain.numLiberties);
+		assertEquals("Testing expected liberties", expectedLiberties, chain.getLiberties().size());
 	}
 
 }

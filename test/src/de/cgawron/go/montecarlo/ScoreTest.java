@@ -3,7 +3,7 @@
  */
 package de.cgawron.go.montecarlo;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 import java.io.File;
 import java.util.Arrays;
@@ -15,8 +15,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import de.cgawron.go.Goban;
-import de.cgawron.go.Goban.BoardType;
+import de.cgawron.go.montecarlo.AnalysisGoban.Cluster;
 import de.cgawron.go.sgf.GameTree;
 
 /**
@@ -25,6 +24,8 @@ import de.cgawron.go.sgf.GameTree;
  */
 @RunWith(Parameterized.class)
 public class ScoreTest {
+	private static Logger logger = Logger.getLogger(ScoreTest.class.getName());
+
 	@Parameters
     public static List<Object[]> data() {
             return Arrays.asList(new Object[][] { { "simpleScore1.sgf", 9.0 }, { "simpleScore2.sgf", 5.0 } });
@@ -38,7 +39,7 @@ public class ScoreTest {
     	this.expectedScore = expectedScore;
     	File inputFile = new File(baseDir, inputSGF);
     	GameTree gameTree = new GameTree(inputFile);
-    	goban = new AnalysisGoban(gameTree.getLeafs().get(0).getGoban(), BoardType.BLACK);
+    	goban = new AnalysisGoban(gameTree.getLeafs().get(0).getGoban());
     }
     
 	/**
@@ -46,9 +47,20 @@ public class ScoreTest {
 	 */
 	@Test
 	public void testChineseScore() {
+		StringBuffer sb = new StringBuffer();
 		int size = goban.getBoardSize();
 		double[][] territory = new double[size][size]; 
-		double score = Evaluator.chineseScore(goban, BoardType.BLACK, territory);
+		double score = goban.chineseScore(territory);
+		Cluster cluster00 = goban.getBoardRep(0, 0).cluster;
+		for (int i=0; i<size; i++) {
+			sb.append("\n");
+			for (int j=0; j<size; j++) {
+				sb.append(String.format(" %4.1f", territory[i][j]));
+			}
+		}
+		logger.info("score: " + score + "\n" + goban.toString());
+		logger.info(sb.toString());
+		logger.info("[0, 0]: " + cluster00.toString(true));
 		assertEquals("Testing expected score", expectedScore, score, 0.2);
 	}
 

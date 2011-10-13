@@ -29,7 +29,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import de.cgawron.go.Goban;
-import de.cgawron.go.GobanEvent;
 import de.cgawron.go.GobanListener;
 import de.cgawron.go.Point;
 import de.cgawron.go.SimpleGoban;
@@ -100,8 +99,8 @@ public class SimpleMarkupModel extends SimpleGoban implements MarkupModel,
 		super.copy(m);
 		if (m instanceof SimpleMarkupModel) {
 			SimpleMarkupModel smp = (SimpleMarkupModel) m;
-			for (int i = 0; i < size; i++)
-				System.arraycopy(smp.markup[i], 0, markup[i], 0, size);
+			for (int i = 0; i < boardSize; i++)
+				System.arraycopy(smp.markup[i], 0, markup[i], 0, boardSize);
 
 			try {
 				if (smp.region != null)
@@ -113,16 +112,16 @@ public class SimpleMarkupModel extends SimpleGoban implements MarkupModel,
 			MarkupModel mm = (MarkupModel) m;
 			short i;
 			short j;
-			for (i = 0; i < size; i++)
-				for (j = 0; j < size; j++)
+			for (i = 0; i < boardSize; i++)
+				for (j = 0; j < boardSize; j++)
 					setMarkup(i, j, mm.getMarkup(i, j));
 			setRegion(mm.getRegion());
 		} else {
 			short i;
 			short j;
 			BoardType color;
-			for (i = 0; i < size; i++)
-				for (j = 0; j < size; j++)
+			for (i = 0; i < boardSize; i++)
+				for (j = 0; j < boardSize; j++)
 					if ((color = m.getStone(i, j)) != BoardType.EMPTY)
 						setMarkup(i, j, new Stone(color));
 		}
@@ -203,7 +202,6 @@ public class SimpleMarkupModel extends SimpleGoban implements MarkupModel,
 	{
 		logger.info("SimpleMarkupModel.propertyChange: " + event);
 		if (event.getSource() instanceof Region) {
-			firePropertyChange(null, null, null);
 			fireRegionChanged();
 			fireModelChanged();
 		}
@@ -231,8 +229,8 @@ public class SimpleMarkupModel extends SimpleGoban implements MarkupModel,
 		short i;
 		short j;
 
-		for (i = 0; i < size; i++)
-			for (j = 0; j < size; j++)
+		for (i = 0; i < boardSize; i++)
+			for (j = 0; j < boardSize; j++)
 				if (getStone(i, j) != BoardType.EMPTY) {
 					if (logger.isLoggable(Level.FINE))
 						logger.fine("reset markup: [" + i + ", " + j + "]: "
@@ -249,10 +247,10 @@ public class SimpleMarkupModel extends SimpleGoban implements MarkupModel,
 	@Override
 	public void setBoardSize(int s)
 	{
-		if (size != s) {
+		if (boardSize != s) {
 			super.setBoardSize(s);
-			size = s;
-			markup = new MarkupModel.Markup[size][size];
+			boardSize = s;
+			markup = new MarkupModel.Markup[boardSize][boardSize];
 		}
 	}
 
@@ -260,10 +258,10 @@ public class SimpleMarkupModel extends SimpleGoban implements MarkupModel,
 	@Override
 	protected void setBoardSizeNoInit(int s)
 	{
-		if (size != s) {
+		if (boardSize != s) {
 			super.setBoardSizeNoInit(s);
-			size = s;
-			markup = new MarkupModel.Markup[size][size];
+			boardSize = s;
+			markup = new MarkupModel.Markup[boardSize][boardSize];
 		}
 	}
 
@@ -314,7 +312,6 @@ public class SimpleMarkupModel extends SimpleGoban implements MarkupModel,
 			oldRegion.removePropertyChangeListener(this);
 		region = newRegion;
 		if (oldRegion != newRegion) {
-			firePropertyChange("region", oldRegion, newRegion);
 			fireRegionChanged();
 			fireModelChanged();
 		}
@@ -339,8 +336,8 @@ public class SimpleMarkupModel extends SimpleGoban implements MarkupModel,
 		StringBuffer s = new StringBuffer(512);
 		int i, j;
 		BoardType p;
-		for (i = 0; i < size; i++) {
-			for (j = 0; j < size; j++) {
+		for (i = 0; i < boardSize; i++) {
+			for (j = 0; j < boardSize; j++) {
 				p = boardRep[i][j];
 				if (markup[i][j] == null)
 					s.append('.');

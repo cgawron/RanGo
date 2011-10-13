@@ -101,15 +101,18 @@
 
 
   <target name="junit" depends="compile,compile-test">
-    <junit haltonfailure="off" printsummary="on" showoutput="on" filtertrace="on" fork="on" dir="${test}">
+    <junit haltonfailure="off" printsummary="on" showoutput="on" filtertrace="on" fork="on" dir=".">
+      <jvmarg value="-agentlib:hprof=cpu=samples,interval=20,depth=6"/>
+      <jvmarg value="-Xmx800m"/>
       <classpath>
 		<pathelement path="${build}/classes" />
-		<pathelement path="${lib}/junit-4.8.2.jar" />
+		<pathelement path="${lib}/cup.jar" />
+		<pathelement path="${lib}/junit-4.10.jar" />
 		<pathelement path="${test}" />
       </classpath>
       <formatter type="xml" />
 	  
-      <test name="de.cgawron.go.montecarlo.ScoreTest" />
+      <test name="de.cgawron.go.montecarlo.EvaluatorTest" />
 <!--
       <test name="de.cgawron.go.sgf.GameTree" />
       <test name="de.cgawron.go.sgf.SgfSuite" />

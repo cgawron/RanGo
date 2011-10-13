@@ -72,7 +72,7 @@ public class AtariTest {
 		node = node.createChild(move);
 		Chain c = node.goban.getChain(move);
 		assertNotNull("Expecting a chain at " + move, c);
-		assertEquals("Expecting chain with 1 liberty at " + move, 6, c.numLiberties);
+		assertEquals("Expecting chain with 1 liberty at " + move, 6, c.getLiberties().size());
 		assertEquals("Testing expected atari count for " + movingColor + " " + node, 
 					 1, node.getAtariCount(movingColor));
 	}
@@ -84,7 +84,7 @@ public class AtariTest {
 			Chain c = node.goban.getChain(p);
 			logger.info("Chain " + c);
 			assertNotNull("Expecting a chain at " + p, c);
-			assertEquals("Expecting chain with 1 liberty at " + p, 1, c.numLiberties);
+			assertEquals("Expecting chain with 1 liberty at " + p, 1, c.getLiberties().size());
 			//assertTrue("Chain must be in chainList", node.goban.chainList.contains(c));
 		}
 	}

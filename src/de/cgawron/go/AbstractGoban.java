@@ -16,9 +16,11 @@
 
 package de.cgawron.go;
 
-import java.beans.PropertyChangeEvent;
-import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
+import java.util.Collection;
+import java.util.Vector;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * A {@link Goban} providing <code>PropertyChangeSupport</code>.
@@ -29,128 +31,183 @@ import java.beans.PropertyChangeSupport;
  */
 public abstract class AbstractGoban implements Goban
 {
+	protected static Logger logger = Logger.getLogger(AbstractGoban.class.getName());
 	private final PropertyChangeSupport pcs = new PropertyChangeSupport(this);
+	protected Collection<GobanListener> listeners = new java.util.ArrayList<GobanListener>();
+	protected int blackCaptured;
+	protected int whiteCaptured;
+	protected Point lastMove;
+	protected int boardSize = 0;
+	protected Vector<Point> removed = new Vector<Point>();
 
-	/**
-	 * Adds a PropertyChangeListener to the listener list. The listener is
-	 * registered for all properties.
-	 * 
-	 * @param listener
-	 *            The PropertyChangeListener to be added
-	 */
-	public void addPropertyChangeListener(PropertyChangeListener listener)
-	{
-		pcs.addPropertyChangeListener(listener);
+	public int _hash(Symmetry s) {
+		Point.BoardIterator it = new Point.BoardIterator(getBoardSize());
+		int h = 0;
+		int n = 0;
+	
+		while (it.hasNext()) {
+			Point p = (Point) it.next();
+			BoardType stone = getStone(p);
+			if (stone != BoardType.EMPTY) {
+				n++;
+				Point pt = s.transform(p, getBoardSize());
+				int z = zobrist[pt.getY() * getBoardSize() + pt.getX()];
+				if (s.transform(stone) == BoardType.BLACK)
+					h += z;
+				else
+					h -= z;
+			}
+		}
+		// if (sym & 8 != 0) h ^= 0xffffffff;
+		h = (h & 0x01ffffff) | ((n & 0xfe) << (32 - 7));
+		return h;
+	}
+
+	protected void addCaptureStones(BoardType color, int size) {
+		switch(color) {
+		case WHITE: 
+			whiteCaptured += size;
+			break;
+		case BLACK: 
+			blackCaptured += size;
+			break;
+		default:
+			throw new IllegalArgumentException("Can't capure " + color);
+		}
+	}
+
+	/** addGobanListener method comment. */
+	public void addGobanListener(GobanListener l) {
+		listeners.add(l);
 	}
 
 	/**
-	 * Removes a PropertyChangeListener from the listener list. This removes a
-	 * PropertyChangeListener that was registered for all properties.
-	 * 
-	 * @param listener
-	 *            The PropertyChangeListener to be removed
+	 * Calculate the chinese score of the position.
+	 * This method assumes that all dead stones are already removed, i.e. all 
+	 * stones on the board are considered alive, and territories containing stones of both colors are neutral.
+	 * @return The chinese score of the position.
 	 */
-	public void removePropertyChangeListener(PropertyChangeListener listener)
-	{
-		pcs.removePropertyChangeListener(listener);
+	public abstract int chineseScore(double[][] territory);
+
+	@Override
+	abstract public Goban clone();
+
+	public boolean equals(Object o, Symmetry s) {
+		if (o instanceof Goban) {
+			Goban goban = (Goban) o;
+			Point.BoardIterator it = new Point.BoardIterator(boardSize);
+	
+			while (it.hasNext()) {
+				Point p = (Point) it.next();
+				Point pt = s.transform(p, boardSize);
+				if (goban.getStone(p) != s.transform(getStone(pt)))
+					return false;
+			}
+			return true;
+		}
+		return false;
 	}
 
 	/**
-	 * Adds a PropertyChangeListener for a specific property. The listener will
-	 * be invoked only when a call on firePropertyChange names that specific
-	 * property.
+	 * Insert the method's description here. Creation date: (03/25/00 16:07:59)
 	 * 
-	 * @param propertyName
-	 *            The name of the property to listen on
-	 * @param listener
-	 *            The PropertyChangeListener to be added
+	 * @param x
+	 *            int
+	 * @param y
+	 *            int
+	 * @param c
+	 *            goban.BoardType
 	 */
-	public void addPropertyChangeListener(String propertyName,
-			PropertyChangeListener listener)
-	{
-		pcs.addPropertyChangeListener(propertyName, listener);
+	protected void fireModelChanged() {
+		GobanEvent e = null;
+		// Process the listeners last to first, notifying
+		// those that are interested in this event
+		for (GobanListener listener : listeners) {
+			if (logger.isLoggable(Level.FINE))
+				logger.fine("Notifying listener ...");
+			// Lazily create the event:
+			if (e == null)
+				e = new GobanEvent(this);
+			listener.modelChanged(e);
+		}
 	}
 
 	/**
-	 * Removes a PropertyChangeListener for a specific property.
+	 * Insert the method's description here. Creation date: (03/25/00 16:07:59)
 	 * 
-	 * @param propertyName
-	 *            The name of the property that was listened on
-	 * @param listener
-	 *            The PropertyChangeListener to be removed
+	 * @param x
+	 *            int
+	 * @param y
+	 *            int
+	 * @param c
+	 *            goban.BoardType
 	 */
-	public void removePropertyChangeListener(String propertyName,
-			PropertyChangeListener listener)
-	{
-		pcs.removePropertyChangeListener(propertyName, listener);
+	protected void fireStoneAdded(int x, int y, BoardType c) {
+		GobanEvent e = null;
+		// Process the listeners last to first, notifying
+		// those that are interested in this event
+		for (GobanListener listener : listeners) {
+			if (logger.isLoggable(Level.FINE))
+				logger.fine("Notifying listener ...");
+			// Lazily create the event:
+			if (e == null)
+				e = new GobanEvent(this, x, y, c);
+			listener.stoneAdded(e);
+		}
 	}
 
 	/**
-	 * Reports a bound property update to any registered listeners. No event is
-	 * fired if old and new are equal and non-null.
+	 * Insert the method's description here. Creation date: (03/25/00 16:07:59)
 	 * 
-	 * @param propertyName
-	 *            The programmatic name of the property that was changed
-	 * @param oldValue
-	 *            The old value of the property
-	 * @param newValue
-	 *            The new value of the property.
+	 * @param x
+	 *            int
+	 * @param y
+	 *            int
+	 * @param c
+	 *            goban.BoardType
 	 */
-	public void firePropertyChange(String propertyName, Object oldValue,
-			Object newValue)
-	{
-		pcs.firePropertyChange(propertyName, oldValue, newValue);
+	protected void fireStonesRemoved(Collection<Point> removed) {
+		// Guaranteed to return a non-null array
+		GobanEvent e = null;
+		// Process the listeners last to first, notifying
+		// those that are interested in this event
+		for (GobanListener listener : listeners) {
+			// Lazily create the event:
+			if (e == null)
+				e = new GobanEvent(this, removed);
+			listener.stonesRemoved(e);
+		}
 	}
 
-	/**
-	 * Reports a bound property update to any registered listeners. No event is
-	 * fired if old and new are equal and non-null. This is merely a convenience
-	 * wrapper around the more general firePropertyChange method that takes
-	 * Object values. No event is fired if old and new are equal and non-null.
-	 * 
-	 * @param propertyName
-	 *            The programmatic name of the property that was changed
-	 * @param oldValue
-	 *            The old value of the property
-	 * @param newValue
-	 *            The new value of the property.
-	 */
-	public void firePropertyChange(String propertyName, int oldValue,
-			int newValue)
-	{
-		pcs.firePropertyChange(propertyName, oldValue, newValue);
+	@Override
+	public int getBlackCaptured() {
+		return blackCaptured;
 	}
 
-	/**
-	 * Reports a bound property update to any registered listeners. No event is
-	 * fired if old and new are equal and non-null. This is merely a convenience
-	 * wrapper around the more general firePropertyChange method that takes
-	 * Object values. No event is fired if old and new are equal and non-null.
-	 * 
-	 * @param propertyName
-	 *            The programmatic name of the property that was changed
-	 * @param oldValue
-	 *            The old value of the property
-	 * @param newValue
-	 *            The new value of the property.
-	 */
-	public void firePropertyChange(String propertyName, boolean oldValue,
-			boolean newValue)
-	{
-		pcs.firePropertyChange(propertyName, oldValue, newValue);
+	/** getBoardSize method comment. */
+	public final int getBoardSize() {
+		return boardSize;
 	}
 
-	/**
-	 * Fires an existing PropertyChangeEvent to any registered listeners. No
-	 * event is fired if the given event's old and new values are equal and
-	 * non-null.
-	 * 
-	 * @param evt
-	 *            The PropertyChangeEvent object.
-	 */
-	public void firePropertyChange(PropertyChangeEvent evt)
-	{
-		pcs.firePropertyChange(evt);
+	public Point getLastMove() {
+		return lastMove;
+	}
+
+	public Vector<Point> getRemoved() {
+		return removed;
+	}
+
+	public BoardType getStone(Point p) {
+		return getStone(p.getX(), p.getY());
+	}
+
+	@Override
+	public int getWhiteCaptured() {
+		return whiteCaptured;
+	}
+
+	public int hashCode() {
+		return zobristHash();
 	}
 
 	/**
@@ -166,14 +223,44 @@ public abstract class AbstractGoban implements Goban
 		return pcs.hasListeners(propertyName);
 	}
 
-	/**
-	 * This method should be considered private. It is only part of this
-	 * interface for implementation reasons.
-	 * 
-	 * @todo Maybe it would be better to move this to AbstractGoban.
-	 */
-	abstract int _hash(Symmetry s);
+	@Override
+	public boolean move(Point p, BoardType color) {
+		return move(p.getX(), p.getY(), color);
+	}
 
 	@Override
-	abstract public Goban clone();
+	public boolean move(Point p, BoardType color, int moveNo) {
+		return move(p.getX(), p.getY(), color);
+	}
+
+	@Override
+	public void putStone(Point p, BoardType color) {
+		putStone(p.getX(), p.getY(), color);
+	}
+
+	/** addGobanListener method comment. */
+	public void removeGobanListener(GobanListener l) {
+		listeners.remove(l);
+	}
+	
+	public String toString() {
+		StringBuffer s = new StringBuffer(512);
+		int i, j;
+		BoardType p;
+		for (i = 0; i < getBoardSize(); i++) {
+			for (j = 0; j < getBoardSize(); j++) {
+				p = getStone(i, j);
+				if (p == BoardType.WHITE)
+					s.append("O ");
+				else if (p == BoardType.BLACK)
+					s.append("X ");
+				else
+					s.append(". ");
+			}
+			s.append('\n');
+		}
+		return s.toString();
+	}
+
+
 }

@@ -15,8 +15,6 @@
  */
 package de.cgawron.go;
 
-import java.beans.PropertyChangeListener;
-
 import javax.xml.bind.annotation.XmlEnum;
 import javax.xml.bind.annotation.XmlEnumValue;
 
@@ -270,50 +268,6 @@ public interface Goban extends Cloneable
 	 */
 	void setBoardSize(int size);
 
-	/**
-	 * Adds a PropertyChangeListener to the listener list. The listener is
-	 * registered for all properties.
-	 * 
-	 * @param listener
-	 *            The PropertyChangeListener to be added
-	 */
-	void addPropertyChangeListener(PropertyChangeListener listener);
-
-	/**
-	 * Removes a PropertyChangeListener from the listener list. This removes a
-	 * PropertyChangeListener that was registered for all properties.
-	 * 
-	 * @param listener
-	 *            The PropertyChangeListener to be removed
-	 */
-	void removePropertyChangeListener(PropertyChangeListener listener);
-
-	/**
-	 * Adds a PropertyChangeListener for a specific property. The listener will
-	 * be invoked only when a call on firePropertyChange names that specific
-	 * property.
-	 * 
-	 * @param propertyName
-	 *            The name of the property to listen on
-	 * @param listener
-	 *            The PropertyChangeListener to be added
-	 */
-	void addPropertyChangeListener(String propertyName,
-			PropertyChangeListener listener);
-
-	/**
-	 * Removes a PropertyChangeListener for a specific property.
-	 * 
-	 * @param propertyName
-	 *            The name of the property that was listened on
-	 * @param listener
-	 *            The PropertyChangeListener to be removed
-	 */
-	void removePropertyChangeListener(String propertyName,
-			PropertyChangeListener listener);
-
-	
-	
 	/**
 	 * Calculate the Zobrist hash of the Goban. The Zobrist hash is a hash
 	 * function which is invariant under symmetry operations (rotation, color
