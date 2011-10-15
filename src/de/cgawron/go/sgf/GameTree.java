@@ -33,7 +33,6 @@ import java.io.Reader;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.EventListener;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -80,7 +79,15 @@ public class GameTree implements TreeModel, PropertyChangeListener,
 		M getGoban(Goban m);
 	}
 
-	GobanFactory factory;
+	GobanFactory<? extends Goban> factory;
+
+	public GobanFactory<? extends Goban> getFactory() {
+		return factory;
+	}
+
+	public void setFactory(GobanFactory<? extends Goban> factory) {
+		this.factory = factory;
+	}
 
 	abstract class NodeCount extends TreeVisitor<GameTree, Node>
 	{
@@ -568,68 +575,6 @@ public class GameTree implements TreeModel, PropertyChangeListener,
 		root = newRoot;
 		root.setGameTree(this);
 
-		if (false && !rootOnly) {
-			TreeVisitor<GameTree, Node> visitor = new TreeVisitor<GameTree, Node>(
-					this) {
-				@Override
-				protected void visitNode(Node n)
-				{
-					Goban goban = null;
-
-					if (logger.isLoggable(Level.FINE))
-						logger.fine("setRoot(" + newRoot + "): visiting " + n);
-					Node p = n.getParent();
-
-					if (p == null) {
-						goban = getGoban(n.getBoardSize());
-						n.setMoveNo(n.isMove() ? 1 : 0);
-					} else {
-						if (logger.isLoggable(Level.FINE))
-							logger.fine(n.toString()
-									+ ": inheriting Board from " + p.toString());
-						goban = getGoban(p.getGoban());
-
-						if (n.contains(Property.MOVE_NO)) {
-							Value.Number no = null;
-							try {
-								Value value = (n.get(Property.MOVE_NO))
-										.getValue();
-								logger.info("value is " + value + " "
-										+ value.getClass());
-								if (value instanceof Value.ValueList)
-									no = (Value.Number) ((Value.ValueList) value)
-											.get(0);
-								else
-									no = (Value.Number) value;
-
-								if (logger.isLoggable(Level.FINE))
-									logger.fine("Setting moveNo on node " + n
-											+ " to " + no.intValue());
-								n.setMoveNo(no.intValue());
-							} catch (Throwable e) {
-								logger.info("value is "
-										+ (n.get(Property.MOVE_NO)).getValue());
-								// throw new RuntimeException(e);
-							}
-						} else if (p.getIndex(n) != 0) {
-							if (logger.isLoggable(Level.FINE))
-								logger.fine("Setting moveNo on node " + n
-										+ " to 1");
-							n.setMoveNo(1);
-						} else {
-							if (logger.isLoggable(Level.FINE))
-								logger.fine("Setting moveNo on node " + n
-										+ " to " + p.getMoveNo() + " + "
-										+ (n.isMove() ? 1 : 0));
-							n.setMoveNo(p.getMoveNo() + (n.isMove() ? 1 : 0));
-						}
-					}
-					n.setGoban(goban);
-				}
-			};
-			visitor.visit();
-		}
-
 		TreeModelEvent ev = new TreeModelEvent(this, new TreePath(root));
 		fireTreeStructureChanged(ev);
 		firePropertyChange("root", oldRoot, newRoot);
@@ -831,6 +776,8 @@ public class GameTree implements TreeModel, PropertyChangeListener,
 
 	public class NodePropertyChangedEvent extends TreeModelEvent
 	{
+		private static final long serialVersionUID = 1L;
+
 		PropertyChangeEvent event;
 
 		NodePropertyChangedEvent(PropertyChangeEvent e)
@@ -1079,7 +1026,7 @@ public class GameTree implements TreeModel, PropertyChangeListener,
 			@Override
 			protected void visitNode(Node n)
 			{
-				for (Map.Entry entry : n.entrySet()) {
+				for (Map.Entry<Property.Key, Property> entry : n.entrySet()) {
 					logger.info("Entry: " + entry);
 					Property p = (Property) entry.getValue();
 					Value v = p.getValue();

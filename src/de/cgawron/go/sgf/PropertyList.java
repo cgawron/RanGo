@@ -18,16 +18,18 @@
 
 package de.cgawron.go.sgf;
 
-import de.cgawron.go.Point;
 import java.io.PrintWriter;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import de.cgawron.go.Point;
 
 public class PropertyList extends TreeMap<Property.Key, Property>
 {
+	private static final long serialVersionUID = 1L;
+	
 	private static Logger logger = Logger.getLogger(PropertyList.class
 			.getName());
 
@@ -136,9 +138,8 @@ public class PropertyList extends TreeMap<Property.Key, Property>
 	public void write(PrintWriter out)
 	{
 		out.print(";");
-		Iterator it = values().iterator();
-		while (it.hasNext()) {
-			Property prop = (Property) it.next();
+		for (Property prop : values())
+		{
 			prop.write(out);
 		}
 		out.println();
