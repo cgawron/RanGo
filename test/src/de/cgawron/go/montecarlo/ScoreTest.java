@@ -4,6 +4,8 @@
 package de.cgawron.go.montecarlo;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.util.Arrays;
@@ -15,6 +17,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
+import de.cgawron.go.Point;
 import de.cgawron.go.montecarlo.AnalysisGoban.Cluster;
 import de.cgawron.go.sgf.GameTree;
 
@@ -51,16 +54,26 @@ public class ScoreTest {
 		int size = goban.getBoardSize();
 		double[][] territory = new double[size][size]; 
 		double score = goban.chineseScore(territory);
-		Cluster cluster00 = goban.getBoardRep(0, 0).cluster;
+		Cluster cluster = goban.getBoardRep(6, 6);
 		for (int i=0; i<size; i++) {
 			sb.append("\n");
 			for (int j=0; j<size; j++) {
-				sb.append(String.format(" %4.1f", territory[i][j]));
+				sb.append(String.format(" %4.0f", territory[i][j]));
 			}
 		}
+		for (Point p : Point.all(size)) {
+			Cluster cp = goban.getBoardRep(p);
+			assertTrue("Testing boardRep at " + p, cp.getPoints().contains(p));
+			for (Cluster c : goban.clusters) {
+				if (cp != c) {
+					assertFalse("Testing boardRep at " + p, c.getPoints().contains(p));
+				}
+			}
+		}
+
 		logger.info("score: " + score + "\n" + goban.toString());
 		logger.info(sb.toString());
-		logger.info("[0, 0]: " + cluster00.toString(true));
+		logger.info("[6, 6]: " + cluster.toString(true));
 		assertEquals("Testing expected score", expectedScore, score, 0.2);
 	}
 

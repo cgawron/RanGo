@@ -5,7 +5,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Queue;
@@ -19,6 +18,7 @@ import de.cgawron.go.Symmetry;
 
 public class AnalysisGoban extends AbstractGoban 
 {
+	/*
 	class BoardRep
 	{
 		BoardType color;
@@ -35,6 +35,8 @@ public class AnalysisGoban extends AbstractGoban
 			return "BoardRep [color=" + color + ", cluster=" + cluster + "]";
 		}
 	}
+	*/
+	
 	/**
 	 * A connected chain of stones.
 	 *  
@@ -83,8 +85,16 @@ public class AnalysisGoban extends AbstractGoban
 		}
 
 		public void join(Chain chain) {
-			// TODO Auto-generated method stub
-			
+			if (parent != null) copy();
+			for (Point p : chain.getPoints()) {
+				addPoint(p);
+				setBoardRep(p, this);
+			}
+			for (Cluster neighbor : chain.getNeighbors()) {
+				addNeighbor(neighbor);
+			}
+			removeNeighbor(chain);
+			clusters.remove(chain);
 		}
 
 		public void removeLiberty(Point p) {
@@ -214,7 +224,17 @@ public class AnalysisGoban extends AbstractGoban
 			points.remove(p);
 		}
 
-		abstract public String toString(boolean expand); 
+		abstract public String toString(boolean expand);
+
+		public void removeNeighbor(Cluster cluster) {
+			if (parent != null)
+				copy();
+			neighbors.remove(cluster);
+		}
+
+		public void clearNeighbors() {
+			neighbors.clear();	
+		} 
 
 	}
 	
@@ -281,7 +301,7 @@ public class AnalysisGoban extends AbstractGoban
 	}
 
 	protected Set<Cluster> clusters;
-	BoardRep[] boardRep;
+	Cluster[] boardRep;
 	private int _hash;
 	private Collection<Point> allPoints;
 
@@ -378,20 +398,20 @@ public class AnalysisGoban extends AbstractGoban
 		return 0;
 	}
 
-	final BoardRep getBoardRep(int x, int y) {
+	final Cluster getBoardRep(int x, int y) {
 		return boardRep[x*boardSize+y];
 	}
 
-	final BoardRep getBoardRep(Point p) {
+	final Cluster getBoardRep(Point p) {
 		return boardRep[p.getX()*boardSize+p.getY()];
 	}
 
 	public Chain getChain(Point p) {
-		return (Chain) boardRep[p.getX()*boardSize + p.getY()].cluster;
+		return (Chain) boardRep[p.getX()*boardSize + p.getY()];
 	}
 	
 	public Eye getEye(Point p) {
-		return (Eye) boardRep[p.getX()*boardSize + p.getY()].cluster;
+		return (Eye) boardRep[p.getX()*boardSize + p.getY()];
 	}
 
 	@Override
@@ -417,13 +437,13 @@ public class AnalysisGoban extends AbstractGoban
 		for (Point p : Point.all(boardSize)) {
 			allPoints.add(p);
 		}
-		boardRep = new BoardRep[boardSize*boardSize];
-		BoardRep empty = new BoardRep(BoardType.EMPTY, new Eye(allPoints));
+		boardRep = new Cluster[boardSize*boardSize];
+		Cluster empty = new Eye(allPoints);
 		Arrays.fill(boardRep, empty);
 	}
 
 	public boolean isOneSpaceEye(Point p) {
-		Cluster c = getBoardRep(p).cluster;
+		Cluster c = getBoardRep(p);
 		return c.getColor() == BoardType.EMPTY && c.getPoints().size() == 1;
 	}
 	
@@ -434,26 +454,26 @@ public class AnalysisGoban extends AbstractGoban
 
 	@Override
 	public boolean move(Point p, BoardType color) {
-		BoardRep stone = getBoardRep(p);
+		Cluster stone = getBoardRep(p);
 		if (stone.color != BoardType.EMPTY)
 			return false;
 		else
-			stone.cluster.remove(p);
+			stone.remove(p);
 		lastMove = p;
 		
 		
 		
-		List<BoardRep> emptyNeighbors = new ArrayList<BoardRep>(4);
+		List<Cluster> emptyNeighbors = new ArrayList<Cluster>(4);
 		List<Chain> friendlyNeighbors = new ArrayList<Chain>(4);
 		List<Point> enemyNeighbors = new ArrayList<Point>(4);
 		
 		for (Point q : p.neighbors(this)) {
-			BoardRep rep = getBoardRep(q);
-			if (rep.color == BoardType.EMPTY) { 
-				if (!emptyNeighbors.contains(rep)) emptyNeighbors.add(rep);
+			Cluster cluster = getBoardRep(q);
+			if (cluster.color == BoardType.EMPTY) { 
+				if (!emptyNeighbors.contains(cluster)) emptyNeighbors.add(cluster);
 			}
-			else if (rep.color == color) {
-				if (!friendlyNeighbors.contains(rep.cluster)) friendlyNeighbors.add((Chain) rep.cluster);
+			else if (cluster.color == color) {
+				if (!friendlyNeighbors.contains(cluster)) friendlyNeighbors.add((Chain) cluster);
 			}
 			else {
 				enemyNeighbors.add(q);
@@ -465,19 +485,19 @@ public class AnalysisGoban extends AbstractGoban
 		if (friendlyNeighbors.size() == 0) {
 			// create new Chain
 			myChain = new Chain(color, p);
-			setBoardRep(p, new BoardRep(color, myChain));
+			setBoardRep(p, myChain);
 		}
 		else {
 			myChain = friendlyNeighbors.remove(0);
 			myChain.addPoint(p);
+			setBoardRep(p, myChain);
 			for (Chain chain : friendlyNeighbors) {
 				myChain.join(chain);
 			}
-			setBoardRep(p, new BoardRep(color, myChain));
 		}
 		
 		for (Point q : enemyNeighbors) {
-			Chain chain = (Chain) getBoardRep(q).cluster;
+			Chain chain = (Chain) getBoardRep(q);
 			chain.removeLiberty(p);
 			if (chain.liberties.size() == 0) {
 				myChain.addNeighbor(removeChain(chain));
@@ -490,7 +510,7 @@ public class AnalysisGoban extends AbstractGoban
 		}
 		
 		if (emptyNeighbors.size() + friendlyNeighbors.size() + enemyNeighbors.size() < 4) {
-			for (BoardRep eye : emptyNeighbors) {	
+			for (Cluster eye : emptyNeighbors) {	
 				Collection<Cluster> newEyes = checkIfPartioned(eye, p);
 				for (Cluster newEye : newEyes) {
 					myChain.addNeighbor(newEye);
@@ -513,20 +533,20 @@ public class AnalysisGoban extends AbstractGoban
 	
 	@Override
 	public void putStone(Point p, BoardType color) {
-		BoardRep stone = getBoardRep(p);
-		stone.cluster.remove(p);
+		Cluster stone = getBoardRep(p);
+		stone.remove(p);
 		
-		List<BoardRep> emptyNeighbors = new ArrayList<BoardRep>(4);
+		List<Cluster> emptyNeighbors = new ArrayList<Cluster>(4);
 		List<Chain> friendlyNeighbors = new ArrayList<Chain>(4);
 		List<Point> enemyNeighbors = new ArrayList<Point>(4);
 		
 		for (Point q : p.neighbors(this)) {
-			BoardRep rep = getBoardRep(q);
-			if (rep.color == BoardType.EMPTY) { 
-				if (!emptyNeighbors.contains(rep)) emptyNeighbors.add(rep);
+			Cluster cluster = getBoardRep(q);
+			if (cluster.color == BoardType.EMPTY) { 
+				if (!emptyNeighbors.contains(cluster)) emptyNeighbors.add(cluster);
 			}
-			else if (rep.color == color) {
-				if (!friendlyNeighbors.contains(rep.cluster)) friendlyNeighbors.add((Chain) rep.cluster);
+			else if (cluster.color == color) {
+				if (!friendlyNeighbors.contains(cluster)) friendlyNeighbors.add((Chain) cluster);
 			}
 			else {
 				enemyNeighbors.add(q);
@@ -538,19 +558,19 @@ public class AnalysisGoban extends AbstractGoban
 		if (friendlyNeighbors.size() == 0) {
 			// create new Chain
 			myChain = new Chain(color, p);
-			setBoardRep(p, new BoardRep(color, myChain));
+			setBoardRep(p, myChain);
 		}
 		else {
 			myChain = friendlyNeighbors.remove(0);
 			myChain.addPoint(p);
+			setBoardRep(p, myChain);
 			for (Chain chain : friendlyNeighbors) {
 				myChain.join(chain);
 			}
-			setBoardRep(p, new BoardRep(color, myChain));
 		}
 		
 		for (Point q : enemyNeighbors) {
-			Chain chain = (Chain) getBoardRep(q).cluster;
+			Chain chain = (Chain) getBoardRep(q);
 			chain.removeLiberty(p);
 			myChain.removeLiberty(q);
 			myChain.addNeighbor(chain);
@@ -558,7 +578,7 @@ public class AnalysisGoban extends AbstractGoban
 		}
 		
 		if (emptyNeighbors.size() + friendlyNeighbors.size() + enemyNeighbors.size() < 4) {
-			for (BoardRep eye : emptyNeighbors) {	
+			for (Cluster eye : emptyNeighbors) {	
 				Collection<Cluster> newEyes = checkIfPartioned(eye, p);
 				for (Cluster newEye : newEyes) {
 					myChain.addNeighbor(newEye);
@@ -567,42 +587,46 @@ public class AnalysisGoban extends AbstractGoban
 		}
 	}
 
-	private Collection<Cluster> checkIfPartioned(BoardRep rep, Point p) {
+	private Collection<Cluster> checkIfPartioned(Cluster cluster, Point p) {
 		Collection<Cluster> newEyes = new ArrayList<Cluster>(4);
 		Collection<Point> points = new HashSet<Point>();
 		Queue<Point> queue = new PriorityQueue<Point>();
 		Set<Cluster> neighbors; 
 		
-		newEyes.add(rep.cluster);
-		rep.cluster.addNeighbor(getBoardRep(p).cluster);
+		newEyes.add(cluster);
+		if (cluster.parent != null)
+			cluster.copy();
 		do {
 			neighbors = new HashSet<Cluster>();
 			points.clear();
-			if (rep.cluster.getPoints().size() > 0)
-				queue.add(rep.cluster.getPoint());
+			if (cluster.getPoints().size() > 0)
+				queue.add(cluster.getPoint());
 			while (queue.size() > 0) {
 				Point q = queue.remove();
 				points.add(q);
 				for (Point r : q.neighbors(this)) {
-					if (rep.cluster.getPoints().contains(r) && !points.contains(r) && !queue.contains(r)) queue.add(r);
+					if (cluster.getPoints().contains(r) && !points.contains(r) && !queue.contains(r)) queue.add(r);
 					else {
-						BoardRep neighbor = getBoardRep(r);
+						Cluster neighbor = getBoardRep(r);
 						if (neighbor.color != BoardType.EMPTY) {
-							neighbors.add(neighbor.cluster);
+							neighbors.add(neighbor);
 						}
 					}
 				}
 			}
-			if (points.size() != rep.cluster.getPoints().size()) {
-				rep.cluster.copy();
-				rep.cluster.points.removeAll(points);
-				BoardRep empty = new BoardRep(BoardType.EMPTY, new Eye(points, neighbors));
-				newEyes.add(empty.cluster);
+			if (points.size() != cluster.getPoints().size()) {
+				cluster.copy();
+				cluster.points.removeAll(points);
+				Cluster empty = new Eye(points, neighbors);
+				newEyes.add(empty);
 				for (Point r : points) {
 					setBoardRep(r, empty);
 				}
 			}
-		} while (points.size() != rep.cluster.getPoints().size());
+			else {
+				cluster.neighbors = neighbors;
+			}
+		} while (points.size() != cluster.getPoints().size());
 		
 		return newEyes;
 	}
@@ -611,16 +635,18 @@ public class AnalysisGoban extends AbstractGoban
 		Eye eye = new Eye(chain.getPoints(), chain.getNeighbors());
 		for (Point p : chain.getPoints()) {
 			removed.add(p);
-			setBoardRep(p, new BoardRep(BoardType.EMPTY, eye));
+			setBoardRep(p, eye);
 			for (Point q : p.neighbors(this)) {
-				BoardRep rep = getBoardRep(q);
-				if (rep.cluster.color == chain.color.opposite()) {
-					Chain other = (Chain) rep.cluster;
+				Cluster cluster = getBoardRep(q);
+				cluster.removeNeighbor(chain);
+				if (cluster.color == chain.color.opposite()) {
+					Chain other = (Chain) cluster;
 					other.addLiberty(q);
 				}
 			}
 		}
 		addCaptureStones(chain.color, chain.size());
+		clusters.remove(chain);
 		return eye;
 	}
 
@@ -638,7 +664,7 @@ public class AnalysisGoban extends AbstractGoban
 		else return 0;
 	}
 
-	private final void setBoardRep(Point p, BoardRep rep) {
+	private final void setBoardRep(Point p, Cluster rep) {
 		boardRep[p.getX()*boardSize+p.getY()] = rep;
 	}
 
@@ -674,7 +700,7 @@ public class AnalysisGoban extends AbstractGoban
 			int n = 0;
 
 			for (int i=0; i<boardSize*boardSize; i++) {
-				BoardType stone = boardRep[i].cluster.color;
+				BoardType stone = boardRep[i].color;
 				if (stone != BoardType.EMPTY) {
 					n++;
 					if (stone == BoardType.BLACK)
