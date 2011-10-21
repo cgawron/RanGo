@@ -158,9 +158,9 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		AnalysisNode child = createChild();
 		child.move = p;
 		child.goban.move(p, movingColor);
+		//logger.info("createChild: " + p + "\n[" + goban + "]\n[" + child.goban + "]");
 		updateMiai();
 		child.suitability = child.calculateStaticSuitability();
-		//logger.info("createChild: \n" + child);
 		child.movingColor = movingColor.opposite();
 		return child;
 	}
@@ -259,7 +259,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		int parentAtari = parent.getAtariCount(parent.movingColor);		
 		int myAtari = getAtariCount(parent.movingColor);
 		
-		// logger.info("getSavedStones: " + move + ": " + parentAtari + " - " + myAtari);
+	    logger.info("getSavedStones: " + move + ": " + parentAtari + " - " + myAtari);
 		return parentAtari - myAtari;
 	}
 	
