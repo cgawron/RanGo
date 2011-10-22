@@ -127,22 +127,16 @@ public class AnalysisGoban extends AbstractGoban
 		private Set<Point> points;
 		private Set<Cluster> neighbors;
 
-		private int myHash;
-		
 		protected Cluster(BoardType color) 
 		{
 			this.color = color;
 			this.points = new TreeSet<Point>();
 			this.neighbors = new HashSet<Cluster>();
-			myHash = 31 * color.hashCode();
 		}
 
 		protected Cluster(BoardType color, Collection<Point> points) {
 			this(color);
 			this.points.addAll(points);
-			myHash = 31 * color.hashCode();
-			for (Point p : points) 
-				myHash += zobrist[p.getX()*boardSize + p.getY()];
 		}
 
 		protected Cluster(Cluster parent) 
@@ -154,9 +148,6 @@ public class AnalysisGoban extends AbstractGoban
 			this.color = color;
 			this.points = new TreeSet<Point>(points);
 			this.neighbors = new HashSet<Cluster>(neighbors);
-			myHash = 31 * color.hashCode();
-			for (Point p : points) 
-				myHash += zobrist[p.getX()*boardSize + p.getY()];
 		}
 
 		public void addNeighbor(Cluster cluster)
@@ -170,7 +161,6 @@ public class AnalysisGoban extends AbstractGoban
 			if (parent != null)
 				copy();
 			points.add(p);
-			myHash += zobrist[p.getX()*boardSize + p.getY()];
 		}
 		
 		public abstract Cluster clone();
@@ -226,7 +216,6 @@ public class AnalysisGoban extends AbstractGoban
 		public void removePoint(Point p) {
 			if (parent != null) copy();
 			points.remove(p);
-			myHash += zobrist[p.getX()*boardSize + p.getY()];
 		}
 
 		abstract public String toString(boolean expand);
