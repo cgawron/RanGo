@@ -259,7 +259,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		int parentAtari = parent.getAtariCount(parent.movingColor);		
 		int myAtari = getAtariCount(parent.movingColor);
 		
-	    logger.info("getSavedStones: " + move + ": " + parentAtari + " - " + myAtari);
+	    // logger.info("getSavedStones: " + move + ": " + parentAtari + " - " + myAtari);
 		return parentAtari - myAtari;
 	}
 	
@@ -373,7 +373,8 @@ class AnalysisNode implements Comparable<AnalysisNode>
 					for (int i=n-2; i>=0; i--)
 					{
 						if (sequence[i].goban.equals(child.goban)) {
-							illegalKo = true;
+							// FIXME
+							//illegalKo = true;
 							break;
 						}
 					}
@@ -381,7 +382,8 @@ class AnalysisNode implements Comparable<AnalysisNode>
 					while (node.parent != null) {
 						node = node.parent;
 						if (node.goban.equals(child.goban)) {
-							illegalKo = true;
+							// FIXME!
+							// illegalKo = true;
 							break;
 						}
 					}
@@ -393,6 +395,8 @@ class AnalysisNode implements Comparable<AnalysisNode>
 			}
 		}
 		// logger.info("final max=" + max + ", best=" + best);
+		if (best == null) throw new NullPointerException();
+		assert best != null;
 		return best;
 	}
 

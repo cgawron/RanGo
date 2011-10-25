@@ -116,7 +116,7 @@ public class Evaluator
 		public int numSimulations = 2000;
 		
 		@XmlAttribute
-		public int numThreads = 2;
+		public int numThreads = 1;
 		
 		@XmlAttribute
 		public int steepness = 1;
@@ -215,6 +215,38 @@ public class Evaluator
 
 	/** Evaluates the score of a Goban */
 	public double evaluate(AnalysisNode root)
+	{
+		//FIXME How can we avoid this?
+		workingTree.clear();
+		
+		createNode(root);
+		double[][] territory = null; // new double[boardSize][boardSize];
+
+
+		for (simulation = 0; simulation < parameters.numSimulations; simulation++) {
+			Runnable simulation = new RandomSimulator(root, territory);
+			simulation.run();
+		}
+
+		StringBuffer sb = new StringBuffer();
+		/*
+		 * for (AnalysisGoban goban : root.children) { sb.append("\n"); for (int
+		 * j=0; j<boardSize; j++) { if (wins[i][j] > 0)
+		 * sb.append(String.format(" %3.1f", wins[i][j])); else { switch
+		 * (root.goban.getStone(i, j)) { case WHITE: sb.append("  O "); break;
+		 * case BLACK: sb.append("  X "); break; case EMPTY: sb.append("  . ");
+		 * break; } } } }
+		 */
+
+		dumpTree(logger, root, 3, 30);
+
+		logger.info("best: " + root.getBestChild());
+		return root.getScore();
+	}
+
+	
+	/** Evaluates the score of a Goban */
+	public double evaluateWithExecutor(AnalysisNode root)
 	{
 		//FIXME How can we avoid this?
 		workingTree.clear();
@@ -344,8 +376,10 @@ public class Evaluator
 
 	protected void createNode(AnalysisNode node)
 	{
-		if (workingTree.containsKey(node))
+		if (workingTree.containsKey(node)) {
+			logger.info("Node " + node + " already present!");
 			return;
+		}
 		
 		synchronized (node) {
 		node.children = new HashSet<AnalysisNode>();

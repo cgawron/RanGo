@@ -246,6 +246,7 @@ public abstract class AbstractGoban implements Goban
 	public String toString() {
 		StringBuffer s = new StringBuffer(512);
 		int i, j;
+		s.append("\n");
 		BoardType p;
 		for (i = 0; i < getBoardSize(); i++) {
 			for (j = 0; j < getBoardSize(); j++) {

@@ -53,8 +53,15 @@ public class ScoreTest {
 		StringBuffer sb = new StringBuffer();
 		int size = goban.getBoardSize();
 		double[][] territory = new double[size][size]; 
+		for (int i=0; i<size; i++) {
+			for (int j=0; j<size; j++) {
+				territory[i][j] = Double.NaN;
+			}
+		}
+		Cluster cluster14 = goban.getBoardRep(1, 4);
+		logger.info("cluster14 " + cluster14.toString(true));
 		double score = goban.chineseScore(territory);
-		Cluster cluster = goban.getBoardRep(6, 6);
+
 		for (int i=0; i<size; i++) {
 			sb.append("\n");
 			for (int j=0; j<size; j++) {
@@ -73,7 +80,6 @@ public class ScoreTest {
 
 		logger.info("score: " + score + "\n" + goban.toString());
 		logger.info(sb.toString());
-		logger.info("[6, 6]: " + cluster.toString(true));
 		assertEquals("Testing expected score", expectedScore, score, 0.2);
 	}
 

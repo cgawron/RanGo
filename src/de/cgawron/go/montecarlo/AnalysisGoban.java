@@ -10,6 +10,7 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.logging.Level;
 
 import de.cgawron.go.AbstractGoban;
 import de.cgawron.go.Goban;
@@ -38,9 +39,16 @@ public class AnalysisGoban extends AbstractGoban
 			}
 		}
 		
+		protected Chain(BoardType color, Point p, Collection<Point> libs) {
+			super(color);
+			liberties = new TreeSet<Point>(libs);
+			addPoint(p);
+		}
+		
 		protected Chain(Chain parent)
 		{
 			super(parent);
+			assert ((Chain) (this.parent)).liberties != null;
 		}
 
 		public void addLiberty(Point p) {
@@ -61,7 +69,7 @@ public class AnalysisGoban extends AbstractGoban
 		@Override
 		protected void copy() {
 			if (parent != null) {
-				this.liberties = new TreeSet<Point>(((Chain) parent).liberties);
+				liberties = new TreeSet<Point>(((Chain) parent).liberties);
 				super.copy();
 			}
 		}
@@ -73,6 +81,8 @@ public class AnalysisGoban extends AbstractGoban
 			else
 				result = liberties;
 			
+			assert result != null;
+
 			return Collections.unmodifiableSet(result);
 		}
 
@@ -80,13 +90,12 @@ public class AnalysisGoban extends AbstractGoban
 			if (parent != null) copy();
 			for (Point p : chain.getPoints()) {
 				addPoint(p);
-				setBoardRep(p, this);
 			}
 			for (Cluster neighbor : chain.getNeighbors()) {
 				addNeighbor(neighbor);
+				neighbor.removeNeighbor(chain);
 			}
 			removeNeighbor(chain);
-			clusters.remove(chain);
 			liberties.addAll(chain.getLiberties());
 		}
 
@@ -141,6 +150,7 @@ public class AnalysisGoban extends AbstractGoban
 
 		protected Cluster(Cluster parent) 
 		{
+			while (parent.parent != null) parent = parent.parent;
 			this.parent = parent;
 		}
 
@@ -216,6 +226,12 @@ public class AnalysisGoban extends AbstractGoban
 		public void removePoint(Point p) {
 			if (parent != null) copy();
 			points.remove(p);
+			if (points.size() == 0) {
+				clusters.remove(this);
+				for (Cluster c : clusters) {
+					c.removeNeighbor(this);
+				}
+			}
 		}
 
 		abstract public String toString(boolean expand);
@@ -249,7 +265,7 @@ public class AnalysisGoban extends AbstractGoban
 			if (!(obj instanceof Cluster))
 				return false;
 			Cluster other = (Cluster) obj;
-			logger.info("equals: " + hashCode() + " " + other.hashCode());
+			// logger.info("equals: " + hashCode() + " " + other.hashCode());
 			return other.hashCode() == hashCode();
 		}
 
@@ -349,10 +365,10 @@ public class AnalysisGoban extends AbstractGoban
 	@Override
 	public int chineseScore(double[][] territory) 
 	{
-		/*
-			if (logger.isLoggable(Level.INFO))
-				logger.info("chineseScore: \n" + this);
-		 */
+		
+		if (logger.isLoggable(Level.INFO))
+			logger.info("chineseScore: \n" + this + ", clusters: " + clusters);
+
 		int score = 0;
 		
 		for (Cluster cluster : clusters) {
@@ -413,11 +429,15 @@ public class AnalysisGoban extends AbstractGoban
 	public void copy(Goban m) {
 		this.boardSize = m.getBoardSize();
 		if (m instanceof AnalysisGoban) {
+			AnalysisGoban goban = (AnalysisGoban) m;
 			// TODO copy also _hash, but that means that move() etc. need to update _hash
 			this.boardRep = new Cluster[boardSize*boardSize];
-			for (int i=0; i<boardSize*boardSize; i++) {
-				boardRep[i] = ((AnalysisGoban) m).boardRep[i].clone();
-				clusters.add(boardRep[i]);
+			for (Cluster c : goban.clusters) {
+				Cluster nc = c.clone();
+				clusters.add(nc);
+				for (Point p : c.getPoints()) {
+					setBoardRep(p, nc);
+				}
 			}
 		}
 		else {
@@ -432,11 +452,11 @@ public class AnalysisGoban extends AbstractGoban
 				Chain chain = (Chain) c;
 				if (chain.getLiberties().size() == 1) {
 					atariCount += chain.size();
-					logger.info("atariCount: " + chain.toString(true) + " is atari");
+					//logger.info("atariCount: " + chain.toString(true) + " is atari");
 				}
 			}
 		}
-		logger.info("atariCount([" + this + "]): " + atariCount);
+		//logger.info("atariCount([" + this + "]): " + atariCount);
 		return atariCount;
 	}
 
@@ -481,6 +501,7 @@ public class AnalysisGoban extends AbstractGoban
 		}
 		boardRep = new Cluster[boardSize*boardSize];
 		Cluster empty = new Eye(allPoints);
+		clusters.add(empty);
 		Arrays.fill(boardRep, empty);
 	}
 
@@ -497,6 +518,8 @@ public class AnalysisGoban extends AbstractGoban
 	@Override
 	public boolean move(Point p, BoardType color) {
 		Cluster stone = getBoardRep(p);
+		
+		// don't move ontop another stone
 		if (stone.getColor() != BoardType.EMPTY)
 			return false;
 		else
@@ -506,7 +529,7 @@ public class AnalysisGoban extends AbstractGoban
 		
 		List<Point> emptyNeighbors = new ArrayList<Point>(4);
 		List<Chain> friendlyNeighbors = new ArrayList<Chain>(4);
-		List<Point> enemyNeighbors = new ArrayList<Point>(4);
+		List<Chain> enemyNeighbors = new ArrayList<Chain>(4);
 		
 		for (Point q : p.neighbors(this)) {
 			Cluster cluster = getBoardRep(q);
@@ -517,7 +540,7 @@ public class AnalysisGoban extends AbstractGoban
 				if (!friendlyNeighbors.contains(cluster)) friendlyNeighbors.add((Chain) cluster);
 			}
 			else {
-				enemyNeighbors.add(q);
+				if (!enemyNeighbors.contains(cluster)) enemyNeighbors.add((Chain) cluster);
 			}
 		}
 		
@@ -525,7 +548,8 @@ public class AnalysisGoban extends AbstractGoban
 		Chain myChain = null;
 		if (friendlyNeighbors.size() == 0) {
 			// create new Chain
-			myChain = new Chain(color, p);
+			myChain = new Chain(color, p, emptyNeighbors);
+			clusters.add(myChain);
 			setBoardRep(p, myChain);
 		}
 		else {
@@ -535,20 +559,25 @@ public class AnalysisGoban extends AbstractGoban
 			setBoardRep(p, myChain);
 			for (Chain chain : friendlyNeighbors) {
 				myChain.join(chain);
+				for (Point q : chain.getPoints()) {
+					setBoardRep(q, myChain);
+				}
+				clusters.remove(chain);
 			}
 		}
 		
 		// there is no liberty on p any more
 		myChain.removeLiberty(p);
 
-		for (Point q : enemyNeighbors) {
-			Chain chain = (Chain) getBoardRep(q);
+		for (Cluster cluster : enemyNeighbors) {
+			if (!(cluster instanceof Chain)) logger.info("p: " + p + "\ncluster: " + cluster.toString(true) + "\npoints: " + cluster.getPoints());
+			Chain chain = (Chain) cluster;
 			chain.removeLiberty(p);
 			if (chain.liberties.size() == 0) {
 				myChain.addNeighbor(removeChain(chain));
 			}
 			else {
-				myChain.removeLiberty(q);
+				//myChain.removeLiberty(q);
 				myChain.addNeighbor(chain);
 				chain.addNeighbor(myChain);
 			}
@@ -562,6 +591,12 @@ public class AnalysisGoban extends AbstractGoban
 					myChain.addNeighbor(newEye);
 				}
 			}
+		}
+		
+		// suicide is not allowed
+		if (myChain.getLiberties().size() == 0) {
+			removeChain(myChain);
+			return false;
 		}
 		
 		return true;
@@ -584,7 +619,7 @@ public class AnalysisGoban extends AbstractGoban
 		
 		List<Point> emptyNeighbors = new ArrayList<Point>(4);
 		List<Chain> friendlyNeighbors = new ArrayList<Chain>(4);
-		List<Point> enemyNeighbors = new ArrayList<Point>(4);
+		List<Chain> enemyNeighbors = new ArrayList<Chain>(4);
 		
 		for (Point q : p.neighbors(this)) {
 			Cluster cluster = getBoardRep(q);
@@ -595,7 +630,7 @@ public class AnalysisGoban extends AbstractGoban
 				if (!friendlyNeighbors.contains(cluster)) friendlyNeighbors.add((Chain) cluster);
 			}
 			else {
-				enemyNeighbors.add(q);
+				if (!enemyNeighbors.contains(cluster)) enemyNeighbors.add((Chain) cluster);
 			}
 		}
 		
@@ -603,7 +638,8 @@ public class AnalysisGoban extends AbstractGoban
 		Chain myChain = null;
 		if (friendlyNeighbors.size() == 0) {
 			// create new Chain
-			myChain = new Chain(color, p);
+			myChain = new Chain(color, p, emptyNeighbors);
+			clusters.add(myChain);
 			setBoardRep(p, myChain);
 		}
 		else {
@@ -612,21 +648,25 @@ public class AnalysisGoban extends AbstractGoban
 			setBoardRep(p, myChain);
 			for (Chain chain : friendlyNeighbors) {
 				myChain.join(chain);
+				for (Point q : chain.getPoints()) {
+					setBoardRep(q, myChain);
+				}
+				clusters.remove(chain);
 			}
 		}
 		
 		// there is no liberty on p any more
 		myChain.removeLiberty(p);
 		
-		for (Point q : enemyNeighbors) {
-			Chain chain = (Chain) getBoardRep(q);
+		for (Cluster cluster : enemyNeighbors) {
+			Chain chain = (Chain) cluster;
 			chain.removeLiberty(p);
-			myChain.removeLiberty(q);
+			// myChain.removeLiberty(q);
 			myChain.addNeighbor(chain);
 			chain.addNeighbor(myChain);
 		}
 		
-		// if (emptyNeighbors.size() + friendlyNeighbors.size() + enemyNeighbors.size() < 4) {
+		if (emptyNeighbors.size() + friendlyNeighbors.size() + enemyNeighbors.size() < 4) {
 			for (Point q : emptyNeighbors) {	
 				Cluster eye = getBoardRep(q);
 				Collection<Cluster> newEyes = checkIfPartioned(eye, p);
@@ -634,9 +674,8 @@ public class AnalysisGoban extends AbstractGoban
 					myChain.addNeighbor(newEye);
 				}
 			}
-		// }
+		}
 		
-		logger.info(p + "empty neighbors: " + emptyNeighbors + ", myChain: " + myChain);
 		myChain.addLiberties(emptyNeighbors);
 	}
 
@@ -671,6 +710,7 @@ public class AnalysisGoban extends AbstractGoban
 				cluster.copy();
 				cluster.points.removeAll(points);
 				Cluster empty = new Eye(points, neighbors);
+				clusters.add(empty);
 				newEyes.add(empty);
 				for (Point r : points) {
 					setBoardRep(r, empty);
@@ -685,29 +725,35 @@ public class AnalysisGoban extends AbstractGoban
 	}
 
 	private Cluster removeChain(Chain chain) {
-		Eye eye = new Eye(chain.getPoints(), chain.getNeighbors());
+		Eye eye = new Eye(chain.getPoints());
 		for (Point p : chain.getPoints()) {
 			removed.add(p);
 			setBoardRep(p, eye);
 			for (Point q : p.neighbors(this)) {
 				Cluster cluster = getBoardRep(q);
-				cluster.removeNeighbor(chain);
 				if (cluster.getColor() == chain.getColor().opposite()) {
 					Chain other = (Chain) cluster;
 					other.addLiberty(q);
+					other.addNeighbor(eye);
+					eye.addNeighbor(other);
 				}
 			}
 		}
+		for (Cluster cluster : chain.getNeighbors()) {
+			cluster.removeNeighbor(chain);
+		}
 		addCaptureStones(chain.getColor(), chain.size());
 		clusters.remove(chain);
+		clusters.add(eye);
 		return eye;
 	}
 
 	private int scoreEmpty(Cluster eye) {
+		// logger.info("scoreEmpty: " + eye.toString(true));
 		boolean touchBlack = false;
 		boolean touchWhite = false;
 		
-		for (Cluster c : eye.neighbors) {
+		for (Cluster c : eye.getNeighbors()) {
 			if (c.getColor() == BoardType.BLACK) touchBlack = true;
 			if (c.getColor() == BoardType.WHITE) touchWhite = true;
 		}

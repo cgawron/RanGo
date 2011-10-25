@@ -4,3 +4,4 @@
 /bin
 /.settings
 /TEST-de.cgawron.go.montecarlo.ScoreTest.xml
+*.class
