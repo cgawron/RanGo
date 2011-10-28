@@ -92,6 +92,19 @@ public class AnalysisNodeTest extends GobanTest
  		checkGoban(child.goban);
  	}
  
+	@Test
+	public void testEyePartion() 
+	{
+ 		AnalysisGoban goban = new AnalysisGoban(7);
+ 		AnalysisNode root = new AnalysisNode(goban, BoardType.BLACK);
+ 		AnalysisNode child = root.createChild(new Point(0, 0));
+ 		checkGoban(child.goban);
+ 		child = child.createChild(new Point(5, 0));
+ 		checkGoban(child.goban);
+ 		child = child.createChild(new Point(6, 1));
+ 		checkGoban(child.goban);
+	}
+	
  	@Test
 	public void testJoin1() 
 	{

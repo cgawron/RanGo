@@ -622,12 +622,13 @@ public class AnalysisGoban extends AbstractGoban
 			Cluster eye = getBoardRep(q);
 			eye.addNeighbor(myChain);
 			myChain.addNeighbor(eye);
-			if (emptyNeighbors.size() + friendlyNeighbors.size() + enemyNeighbors.size() < 4) {
+			// Does not work for points at the edge!!
+			//if (emptyNeighbors.size() + friendlyNeighbors.size() + enemyNeighbors.size() < 4) {
 				Collection<Cluster> newEyes = checkIfPartioned(eye, p);
 				for (Cluster newEye : newEyes) {
 					myChain.addNeighbor(newEye);
 				}
-			}
+			//}
 		}
 
 		// suicide is not allowed
