@@ -26,8 +26,18 @@ public class GobanTest {
 			}
 			for (Cluster d : c.getNeighbors()) {
 				assertTrue("check that neighbors are of different color", c.getColor() != d.getColor());
+				assertTrue("check that cluster has size > 0", c.size() > 0);
+
 			}
+			for (Cluster n : c.getNeighbors()) {
+				if (!n.getNeighbors().contains(c)) throw new NullPointerException();
+				assertTrue("asymmetric neighborship of " + c + " and " + n, n.getNeighbors().contains(c));
+				assertTrue("check that neighbor " + n.toString(true) + " of cluster " + c.toString(true) + " is a valid cluster", goban.clusters.contains(n));
+			}
+			
+
 		}	
+		
 	}
 
 }

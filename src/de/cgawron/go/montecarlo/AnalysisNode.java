@@ -340,7 +340,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 					return node;
 			}
 		}
-		//logger.info("no suitable move - passing");
+		logger.info("no suitable move - passing");
 		AnalysisNode node = createPassNode();
 		//if (node.moveNo >= node.hashCodes.size()) node.hashCodes.setSize(node.moveNo + 1);
 		//node.hashCodes.set(node.moveNo, node.goban.hashCode());

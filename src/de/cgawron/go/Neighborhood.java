@@ -82,11 +82,18 @@ public final class Neighborhood implements Iterable<Point>
 	private int x;
 	private int y;
 
+	@Deprecated
 	public Neighborhood(Goban goban, Point p)
 	{
 		this(goban, p.getX(), p.getY());
 	}
 
+	public Neighborhood(int boardSize, Point p)
+	{
+		this(boardSize, p.getX(), p.getY());
+	}
+	
+	@Deprecated
 	public Neighborhood(Goban goban, int x, int y)
 	{
 		this.x = x;
@@ -94,6 +101,12 @@ public final class Neighborhood implements Iterable<Point>
 		size = goban.getBoardSize();
 	}
 
+	public Neighborhood(int size, int x, int y)
+	{
+		this.x = x;
+		this.y = y;
+		this.size = size;
+	}
 	@Override
 	public Iterator<Point> iterator() {
 		return new NeighborhoodIterator();

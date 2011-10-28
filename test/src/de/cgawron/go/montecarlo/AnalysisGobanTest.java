@@ -73,7 +73,9 @@ public class AnalysisGobanTest extends GobanTest
 	{
  		AnalysisGoban goban = new AnalysisGoban(7);
  		goban.move(1, 0, BoardType.BLACK);
+		checkGoban(goban);
 		goban.move(0, 1, BoardType.BLACK);
+		checkGoban(goban);
 		goban.move(0, 0, BoardType.BLACK);
 		checkGoban(goban);
 	}

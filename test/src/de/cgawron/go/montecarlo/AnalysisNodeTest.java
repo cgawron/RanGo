@@ -67,21 +67,59 @@ public class AnalysisNodeTest extends GobanTest
 	{
  		AnalysisGoban goban = new AnalysisGoban(7);
  		AnalysisNode root = new AnalysisNode(goban, BoardType.BLACK);
- 		AnalysisNode child = root.createChild(new Point(0, 1));
+ 		AnalysisNode child = root.createChild(new Point(0, 0));
+ 		checkGoban(child.goban);
+		child = child.createPassNode();
+ 		child = child.createChild(new Point(2, 0));
+ 		checkGoban(child.goban);
+		child = child.createPassNode();
+ 		child = child.createChild(new Point(2, 2));
+ 		checkGoban(child.goban);
+		child = child.createPassNode();
+ 		child = child.createChild(new Point(0, 2));
+ 		checkGoban(child.goban);
+		child = child.createPassNode();
+ 		child = child.createChild(new Point(0, 1));
  		checkGoban(child.goban);
 		child = child.createPassNode();
  		child = child.createChild(new Point(1, 0));
  		checkGoban(child.goban);
 		child = child.createPassNode();
- 		child = child.createChild(new Point(0, 0));
+ 		child = child.createChild(new Point(2, 1));
+ 		checkGoban(child.goban);
+		child = child.createPassNode();
+ 		child = child.createChild(new Point(1, 2));
  		checkGoban(child.goban);
  	}
+ 
+ 	@Test
+	public void testJoin1() 
+	{
+ 		AnalysisGoban goban = new AnalysisGoban(7);
+ 		AnalysisNode root = new AnalysisNode(goban, BoardType.BLACK);
+ 		AnalysisNode child = root.createChild(new Point(3, 4));
+ 		checkGoban(child.goban);
+		child = child.createChild(new Point(0, 0));
+ 		child = child.createChild(new Point(5, 4));
+ 		checkGoban(child.goban);
+		child = child.createChild(new Point(0, 1));
+ 		child = child.createChild(new Point(4, 3));
+ 		checkGoban(child.goban);
+		child = child.createChild(new Point(0, 2));
+ 		child = child.createChild(new Point(5, 4));
+ 		checkGoban(child.goban);
+		child = child.createChild(new Point(3, 3));
+ 		child = child.createChild(new Point(4, 4));
+ 		checkGoban(child.goban);
+ 	}
+
  	
  	@Test
 	public void testSimulation() 
 	{
+ 		int size = 7;
  		AnalysisNode[] sequence = new AnalysisNode[200];
- 		AnalysisGoban goban = new AnalysisGoban(7);
+ 		AnalysisGoban goban = new AnalysisGoban(size);
  		AnalysisNode root = new AnalysisNode(goban, BoardType.BLACK);
  		AnalysisNode currentNode = root.createChild(new Point(0, 0));
  		
@@ -89,14 +127,21 @@ public class AnalysisNodeTest extends GobanTest
 		sequence[0] = currentNode;
 		while (true) {
 			sequence[++i] = currentNode = currentNode.selectRandomMCMove(sequence, i);
+			goban = currentNode.goban;
+			logger.info("move " + i + ": " + currentNode);			
+			checkGoban(goban);
 			if (currentNode.isPass() && currentNode.parent.isPass()) {
+				StringBuffer sb = new StringBuffer();
+				for (int x=0; x<size; x++) {
+					sb.append("\n");
+					for (int y=0; y<size; y++) {
+						AnalysisNode node = currentNode.createChild(new Point(x, y));
+						sb.append(String.format("%4.1f ", node.calculateStaticSuitability()));
+					}
+				}
+				logger.info("suitability: " + currentNode.movingColor + "\n" + goban + sb.toString());				
 				break;
 			}
-			
-			goban = currentNode.goban;
-			logger.info("move " + i + ": " + currentNode);
-			
-			checkGoban(goban);
 		} 
 	}
 	

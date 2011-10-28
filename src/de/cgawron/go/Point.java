@@ -295,6 +295,12 @@ public class Point implements Comparable<Point>
 		return (Iterable<Point>) ALL[boardSize];
 	}
 
+	public Iterable<Point> neighbors(int boardSize) {
+		if (neighbors == null)
+			neighbors = new Neighborhood(boardSize, this);
+		return neighbors;
+	}
+	
 	public Iterable<Point> neighbors(Goban goban) {
 		if (neighbors == null)
 			neighbors = new Neighborhood(goban, this);
