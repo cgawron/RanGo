@@ -114,15 +114,10 @@ public class AnalysisGobanTest extends GobanTest
 
 		checkGoban(goban);
 				
-		assertEquals("Check number of clusters", 16, goban.clusters.size());
+		assertEquals("Check number of clusters", 17, goban.clusters.size());
 		assertTrue("eye12 should no longer contain [1, 2]", !eye12.getPoints().contains(new Point(1, 2)));
 		assertTrue("clusters should no longer contain cluster00", !goban.clusters.contains(cluster00));
 		assertTrue("clusters should no longer contain eye12", !goban.clusters.contains(eye12));
-		for (Cluster c : goban.clusters) {
-			assertTrue("neighbors should no longer contain cluster00", !c.getNeighbors().contains(cluster00));
-			assertTrue("neighbors should no longer contain eye12", !c.getNeighbors().contains(eye12));
-		}
-	
 		logger.info(goban.toString());
  	}
  	
