@@ -200,7 +200,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 				break;
 			}
 			
-			if (currentNode.moveNo > Evaluator.parameters.maxMoves) {
+			if (currentNode.moveNo >= Evaluator.parameters.maxMoves) {
 				throw new RuntimeException("no result");
 			}
 		} 
@@ -332,7 +332,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 			if (random < 0) {
 				AnalysisNode node = entry.getKey();
 				boolean illegalKo = false;
-				for (int i=n-2; i>=0; i--)
+				for (int i=n-1; i>=0; i--)
 				{
 					if (sequence[i].goban.equals(node.goban))
 						illegalKo = true;
@@ -341,7 +341,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 					return node;
 			}
 		}
-		logger.info("no suitable move - passing");
+		// logger.info("no suitable move - passing");
 		AnalysisNode node = createPassNode();
 		//if (node.moveNo >= node.hashCodes.size()) node.hashCodes.setSize(node.moveNo + 1);
 		//node.hashCodes.set(node.moveNo, node.goban.hashCode());
@@ -371,11 +371,11 @@ class AnalysisNode implements Comparable<AnalysisNode>
 
 				if (value > max) {
 					boolean illegalKo = false;
-					for (int i=n-2; i>=0; i--)
+					for (int i=n-1; i>=0; i--)
 					{
 						if (sequence[i].goban.equals(child.goban)) {
 							// FIXME
-							//illegalKo = true;
+							illegalKo = true;
 							break;
 						}
 					}
@@ -384,11 +384,11 @@ class AnalysisNode implements Comparable<AnalysisNode>
 						node = node.parent;
 						if (node.goban.equals(child.goban)) {
 							// FIXME!
-							// illegalKo = true;
+							illegalKo = true;
 							break;
 						}
 					}
-					if (!illegalKo) {
+					if (!illegalKo || (move == null)) {
 						best = child;
 						max = value;
 					}

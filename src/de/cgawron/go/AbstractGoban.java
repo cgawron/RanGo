@@ -107,6 +107,14 @@ public abstract class AbstractGoban implements Goban
 		}
 		return false;
 	}
+	
+	public boolean equals(Object o) {
+		if (o == this) return true;
+		if (o instanceof Goban) {
+			return o.hashCode() == hashCode();
+		}
+		else return false;
+	}
 
 	/**
 	 * Insert the method's description here. Creation date: (03/25/00 16:07:59)

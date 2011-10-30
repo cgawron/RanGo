@@ -17,8 +17,6 @@ import javax.xml.bind.JAXBContext;
 import javax.xml.bind.Unmarshaller;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlEnum;
-import javax.xml.bind.annotation.XmlList;
 import javax.xml.bind.annotation.XmlRootElement;
 
 import org.junit.runner.Runner;
@@ -32,9 +30,9 @@ import org.junit.runners.model.TestClass;
 
 import de.cgawron.go.Goban;
 import de.cgawron.go.Goban.BoardType;
+import de.cgawron.go.Point;
 import de.cgawron.go.montecarlo.Evaluator.EvaluatorParameters;
 import de.cgawron.go.sgf.GameTree;
-import de.cgawron.go.Point;
 
 public class SGFSuite extends Suite {
 
