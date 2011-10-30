@@ -59,9 +59,9 @@ public class AnalysisGobanTest extends GobanTest
 		assertEquals("Chain at [0, 1] should have 3 liberties", 3, chain01.liberties.size());
 		assertTrue("Check that there is now no chain at [0, 0]", cluster00 instanceof Eye);
 		Eye eye00 = (Eye) cluster00;
-		assertTrue("Check the neighbors of cluste01", cluster01.getNeighbors().contains(eye00));
-		assertTrue("Check the neighbors of eye00", eye00.getNeighbors().contains(cluster01));
-		assertTrue("Check the neighbors of eye00", eye00.getNeighbors().contains(cluster10));
+		assertTrue("Check the neighbors of cluste01", cluster01.getNeighbors().contains(eye00.getRep()));
+		assertTrue("Check the neighbors of eye00", eye00.getNeighbors().contains(cluster01.getRep()));
+		assertTrue("Check the neighbors of eye00", eye00.getNeighbors().contains(cluster10.getRep()));
 		logger.info("Eye: " + eye00.toString(true));
 		assertEquals("Eye at [0, 0] should have 2 neighbors", 2, eye00.getNeighbors().size());
 		goban.move(0, 0, BoardType.BLACK);
@@ -99,16 +99,13 @@ public class AnalysisGobanTest extends GobanTest
  	{
  		AnalysisGoban goban = new AnalysisGoban(getGoban("suitability1.sgf"));
  		logger.info("goban: \n" + goban);
+ 		goban.checkGoban();
  		Cluster cluster00 = goban.getBoardRep(0, 0);
 		Cluster cluster12 = goban.getBoardRep(1, 2);
 		logger.info(cluster00.toString(true));
  		logger.info(cluster12.toString(true));
 		assertTrue("Check that there is a chain at [0, 0]", cluster00 instanceof Chain);
 		assertTrue("Check that there is an eye at [1, 2]", cluster12 instanceof Eye);
-		for (Cluster c : cluster00.getNeighbors())
-		{
-			logger.info("cluster " + c + ": " + c.hashCode());
-		}
 		assertEquals("Check that cluster00 has three neighbors", 3, cluster00.getNeighbors().size());
 		Chain chain00 = (Chain) cluster00;
 		Eye eye12 = (Eye) cluster12;

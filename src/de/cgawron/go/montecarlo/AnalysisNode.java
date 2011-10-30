@@ -156,6 +156,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 	public AnalysisNode createChild(Point p) 
 	{
 		AnalysisNode child = createChild();
+		child.goban.checkGoban();
 		child.move = p;
 		child.goban.move(p, movingColor);
 		//logger.info("createChild: " + p + "\n[" + goban + "]\n[" + child.goban + "]");
