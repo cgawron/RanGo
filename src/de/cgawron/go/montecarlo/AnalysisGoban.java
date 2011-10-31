@@ -432,10 +432,10 @@ public class AnalysisGoban extends AbstractGoban
 	@Override
 	public int chineseScore(double[][] territory) 
 	{
-		
+		/*
 		if (logger.isLoggable(Level.INFO))
 			logger.info("chineseScore: \n" + this + ", clusters: " + clusters);
-
+		*/
 		int score = 0;
 		
 		for (Cluster cluster : clusters) {

@@ -5,21 +5,21 @@
 	<evaluatorParameters numSimulations="2000" />
 	
 	
-	<testcase sgfFile="ko1.sgf" movingColor="black" komi="10" expectedResult="15">
+	<testcase sgfFile="ko1.sgf" movingColor="black" komi="10" expectedScore="15">
 		<expected x="3" y="1" />
 	</testcase>
 
-	<testcase sgfFile="seki1.sgf" movingColor="black" komi="0" expectedResult="0">
+	<testcase sgfFile="seki1.sgf" movingColor="black" komi="0" expectedScore="0">
 		<evaluatorParameters numSimulations="500" />
 	</testcase>
 
-	<testcase sgfFile="seki1.sgf" movingColor="white" komi="0" expectedResult="0" />
+	<testcase sgfFile="seki1.sgf" movingColor="white" komi="0" expectedScore="0" />
 
-	<testcase sgfFile="lifeAndDeath1.sgf" movingColor="black" komi="30" expectedResult="11">
+	<testcase sgfFile="lifeAndDeath1.sgf" movingColor="black" komi="30" expectedScore="11">
 		<expected x="5" y="0" />
 	</testcase>
 
-	<testcase sgfFile="lifeAndDeath1.sgf" movingColor="white" komi="30" expectedResult="19">
+	<testcase sgfFile="lifeAndDeath1.sgf" movingColor="white" komi="30" expectedScore="19">
 		<expected x="5" y="0" />
 	</testcase>
 

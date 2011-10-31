@@ -216,6 +216,8 @@ public class Evaluator
 	/** Evaluates the score of a Goban */
 	public double evaluate(AnalysisNode root)
 	{
+		if (true) return evaluateWithExecutor(root);
+		
 		//FIXME How can we avoid this?
 		workingTree.clear();
 		
