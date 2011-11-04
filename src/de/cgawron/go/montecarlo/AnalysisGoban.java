@@ -2,12 +2,14 @@ package de.cgawron.go.montecarlo;
 
 import static org.junit.Assert.assertTrue;
 
+import java.util.AbstractCollection;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
@@ -30,7 +32,7 @@ public class AnalysisGoban extends AbstractGoban
 	 * @author Christian Gawron
 	 *
 	 */
-	public static class Chain extends Cluster
+	public class Chain extends Cluster
 	{
 		Set<Point> liberties; 
 		
@@ -63,9 +65,9 @@ public class AnalysisGoban extends AbstractGoban
 			liberties.addAll(points);
 		}
 		
-		public Cluster clone()
+		public Cluster clone(AnalysisGoban goban)
 		{
-			return new Chain(this);
+			return goban.new Chain(this);
 		}
 
 		@Override
@@ -94,8 +96,7 @@ public class AnalysisGoban extends AbstractGoban
 				addPoint(p);
 				goban.setBoardRep(p, this);
 			}
-			for (Point p : chain.getNeighbors()) {
-				Cluster neighbor = goban.getBoardRep(p);
+			for (Cluster neighbor : chain.getNeighbors()) {
 				neighbor.removeNeighbor((Cluster) chain);
 				neighbor.addNeighbor(this);
 				addNeighbor(neighbor);
@@ -130,34 +131,65 @@ public class AnalysisGoban extends AbstractGoban
 	 * @author Christian Gawron
 	 *
 	 */
-	public abstract static class Cluster implements Cloneable
+	public abstract class Cluster
 	{
+		private class NeighborCollection extends AbstractCollection<Cluster> {
+			
+			@Override
+			public boolean contains(Object obj) {
+				Cluster cluster = (Cluster) obj;
+				return getNeighborReps().contains(cluster.getRep());
+			}
+
+			@Override
+			public Iterator<Cluster> iterator() {
+				return new Iterator<Cluster>() {
+					Iterator<Point> it = getNeighborReps().iterator();
+					
+					@Override
+					public boolean hasNext() {
+						return it.hasNext();
+					}
+
+					@Override
+					public Cluster next() {
+						return getBoardRep(it.next());
+					}
+
+					@Override
+					public void remove() {
+						throw new UnsupportedOperationException();
+					}
+					
+				};
+			}
+
+			@Override
+			public int size() {
+				return getNeighborReps().size();	
+			}
+			
+		}
+		
 		/**
 		 * If not null, delegate all operations to the parent. If an operation changes the state of the cluster, it should copy the state of 
 		 * the parent and set parent to null. 
 		 */
 		protected Cluster parent;
+		protected Group group;
 		protected int boardSize;
 		
 		private Point rep;
 		private BoardType color;
 		private Set<Point> points;
 		private Set<Point> neighbors;
+		private NeighborCollection neighborCollection;
 
 		protected Cluster(Cluster parent) 
 		{
 			while (parent.parent != null) parent = parent.parent;
 			this.parent = parent;
 		}
-		
-		/*
-		protected Cluster(BoardType color) 
-		{
-			this.color = color;
-			this.points = new TreeSet<Point>();
-			this.neighbors = new TreeSet<Point>();
-		}
-		*/
 
 		protected Cluster(BoardType color, List<Point> points) {
 			this.color = color;
@@ -208,8 +240,7 @@ public class AnalysisGoban extends AbstractGoban
 			points.add(p);
 		}
 		
-		@Override
-		public abstract Cluster clone();
+		public abstract Cluster clone(AnalysisGoban goban);
 		
 		protected void copy() 
 		{
@@ -229,16 +260,16 @@ public class AnalysisGoban extends AbstractGoban
 				return color;
 		}
 
-		public final Set<Point> getNeighbors() {
-			Set<Point> result;
-			if (parent != null)
-				result = parent.neighbors;
-			else
-				result = neighbors;
-			
-			return Collections.unmodifiableSet(result);
+		public final Collection<Cluster> getNeighbors() {
+			if (neighborCollection == null) neighborCollection = new NeighborCollection();
+			return neighborCollection;
 		}
 
+		private final Set<Point> getNeighborReps() {
+			if (parent != null) return parent.neighbors;
+			else return neighbors;
+		}
+		
 		public final Set<Point> getPoints() {
 			Set<Point> result;
 			if (parent != null)
@@ -315,13 +346,8 @@ public class AnalysisGoban extends AbstractGoban
 		public boolean equals(Object obj) {
 			if (this == obj)
 				return true;
-			if (obj == null)
+			else
 				return false;
-			if (!(obj instanceof Cluster))
-				return false;
-			Cluster other = (Cluster) obj;
-			// logger.info("equals: " + hashCode() + " " + other.hashCode());
-			return other.hashCode() == hashCode();
 		}
 
 		public void updateRep(AnalysisGoban goban) {
@@ -335,11 +361,11 @@ public class AnalysisGoban extends AbstractGoban
 
 	}
 	
-	public static class Eye extends Cluster  
+	public class Eye extends Cluster  
 	{
 		/** This eye is definitely a real eye for a group */
-		public boolean real;
-		public Group group;
+		private boolean real;
+		private BoardType eyeColor;
 		
 		protected Eye(Eye parent)
 		{
@@ -352,19 +378,72 @@ public class AnalysisGoban extends AbstractGoban
 
 		public Eye(List<Point> points, Set<Point> neighbors) {
 			super(BoardType.EMPTY, points, neighbors);
+			initialAnalysis();
 		}
 		
 		public Eye(Set<Point> points) {
 			super(BoardType.EMPTY, points);
+			initialAnalysis();
 		}
 
 		public Eye(Set<Point> points, Set<Point> neighbors) {
 			super(BoardType.EMPTY, points, neighbors);
+			initialAnalysis();
 		}
 		
-		public Cluster clone()
+		private void initialAnalysis() 
 		{
-			return new Eye(this);
+			eyeColor = null;
+			boolean touchWhite = false;
+			boolean touchBlack = false;
+			for (Cluster n : getNeighbors()) {
+				if (n.getColor() == BoardType.WHITE) touchWhite = true;
+				else if (n.getColor() == BoardType.BLACK) touchBlack = true;
+			}
+			
+			if (touchBlack && touchWhite) {
+				group = null;
+			}
+			else if (touchWhite) {
+				eyeColor = BoardType.WHITE;	
+			}
+			else if (touchBlack) {
+				eyeColor = BoardType.BLACK;
+			}
+			if (eyeColor != null) {
+				group = new Group(this, getNeighbors(), eyeColor);
+			}
+				
+		}
+
+		public final BoardType getEyeColor() {
+			if (parent != null)
+				return ((Eye) parent).eyeColor;
+			else
+				return eyeColor;
+		}
+
+		protected boolean isReal() {
+			return real;
+		}
+
+		protected void copy() 
+		{
+			super.copy();
+			initialAnalysis();
+		}
+		
+		public Cluster clone(AnalysisGoban goban)
+		{
+			return goban.new Eye(this);
+		}
+
+		protected Group getGroup() 
+		{
+			if (parent != null)
+				return ((Eye) parent).group;
+			else
+				return group;
 		}
 
 		public boolean isVitalPoint(Point move) {
@@ -387,13 +466,19 @@ public class AnalysisGoban extends AbstractGoban
 	
 	public static class Group 
 	{
-		Set<Chain> chains;
+		BoardType color;
+		Set<Point> chains;
 		Set<Eye> eyes;
 		
-		public Group()
+		public Group(Eye eye, Collection<Cluster> chains, BoardType color)
 		{
-			chains = new TreeSet<Chain>();
+			this.chains = new TreeSet<Point>();
 			eyes = new TreeSet<Eye>();
+			eyes.add(eye);
+			this.color = color;
+			for (Cluster c : chains) {
+				this.chains.add(c.getRep());
+			}
 		}
 		
 		public boolean isAlive() {
@@ -483,7 +568,7 @@ public class AnalysisGoban extends AbstractGoban
 	/** 
 	 * Check some important invariants. 
 	 */
-	void checkGoban() {
+	boolean checkGoban() {
 		for (Cluster c : clusters) {
 			assert c.size() > 0 : "cluster has size 0";
 			assert c.getPoints().contains(c.getRep()) : "rep does not belong to cluster";
@@ -491,10 +576,9 @@ public class AnalysisGoban extends AbstractGoban
 			for (Point p : c.getPoints()) {
 				assert getBoardRep(p) == c : "check cluster " + c + " vs. boardRep at " + p;
 			}
-			for (Point p : c.getNeighbors()) {
-				Cluster n = getBoardRep(p);
+			for (Cluster n : c.getNeighbors()) {
 				assert c.getColor() != n.getColor() : "check that neighbors are of different color";
-				assert n.getNeighbors().contains(c.getRep()) : "asymmetric neighborship of " + c + " and " + n;
+				assert n.getNeighbors().contains(c) : "asymmetric neighborship of " + c + " and " + n;
 				assert clusters.contains(n) : "check that neighbor " + n.toString(true) + " of cluster " + c.toString(true) + " is a valid cluster";
 			}
 			if (c instanceof Chain) {
@@ -502,13 +586,14 @@ public class AnalysisGoban extends AbstractGoban
 				for (Point p : chain.getLiberties()) {
 					Cluster d = getBoardRep(p);
 					assert d.getColor() == BoardType.EMPTY : "chain " + chain + ": bogus liberty at " + p;
-					assert c.getNeighbors().contains(d.getRep()) : "chain " + chain + ": liberty at " + p + ", but no corresponding neighbor";
+					assert c.getNeighbors().contains(d) : "chain " + chain + ": liberty at " + p + ", but no corresponding neighbor";
 				}
 			}
 		}
 		for (Point p : allPoints) {
 			assert clusters.contains(getBoardRep(p)) : "cluster missing in clusters";
 		}
+		return true;
 	}
 
 	@Override
@@ -528,18 +613,20 @@ public class AnalysisGoban extends AbstractGoban
 		this.boardSize = m.getBoardSize();
 		if (m instanceof AnalysisGoban) {
 			AnalysisGoban goban = (AnalysisGoban) m;
+			assert goban.checkGoban() : "copy called with inconsistent goban";
 			this.allPoints = goban.allPoints;
 			Map<Cluster, Cluster> clones = new HashMap<Cluster, Cluster>();
 			// TODO copy also _hash, but that means that move() etc. need to update _hash
 			this.boardRep = new Cluster[boardSize*boardSize];
 			for (Cluster c : goban.clusters) {
-				Cluster nc = c.clone();
+				Cluster nc = c.clone(this);
 				clones.put(c, nc);
 				clusters.add(nc);
 				for (Point p : c.getPoints()) {
 					setBoardRep(p, nc);
 				}
 			}
+			assert checkGoban() : "goban inconsistent after copy";
 		}
 		else {
 			init(m);
@@ -608,7 +695,9 @@ public class AnalysisGoban extends AbstractGoban
 
 	public boolean isOneSpaceEye(Point p) {
 		Cluster c = getBoardRep(p);
-		return c.getColor() == BoardType.EMPTY && c.getPoints().size() == 1 && c.getNeighbors().size() == 1;
+		if (!(c instanceof Eye)) return false;
+		Eye e = (Eye) c;
+		return e.getEyeColor() != null && c.size() == 1;
 	}
 	
 	@Override
@@ -834,8 +923,7 @@ public class AnalysisGoban extends AbstractGoban
 
 	private Cluster removeChain(Chain chain) {
 		Eye eye = new Eye(chain.getPoints());
-		for (Point p : chain.getNeighbors()) {
-			Cluster cluster = getBoardRep(p);
+		for (Cluster cluster : chain.getNeighbors()) {
 			cluster.removeNeighbor(chain);
 		}
 		for (Point p : chain.getPoints()) {
@@ -863,8 +951,7 @@ public class AnalysisGoban extends AbstractGoban
 		boolean touchBlack = false;
 		boolean touchWhite = false;
 		
-		for (Point p : eye.getNeighbors()) {
-			Cluster c = getBoardRep(p);
+		for (Cluster c : eye.getNeighbors()) {
 			if (c.getColor() == BoardType.BLACK) touchBlack = true;
 			if (c.getColor() == BoardType.WHITE) touchWhite = true;
 		}
@@ -875,6 +962,7 @@ public class AnalysisGoban extends AbstractGoban
 	}
 
 	private final void setBoardRep(Point p, Cluster rep) {
+		assert rep != null : "setBoardRep called with null rep!";
 		boardRep[p.getX()*boardSize+p.getY()] = rep;
 	}
 

@@ -59,9 +59,9 @@ public class AnalysisGobanTest extends GobanTest
 		assertEquals("Chain at [0, 1] should have 3 liberties", 3, chain01.liberties.size());
 		assertTrue("Check that there is now no chain at [0, 0]", cluster00 instanceof Eye);
 		Eye eye00 = (Eye) cluster00;
-		assertTrue("Check the neighbors of cluste01", cluster01.getNeighbors().contains(eye00.getRep()));
-		assertTrue("Check the neighbors of eye00", eye00.getNeighbors().contains(cluster01.getRep()));
-		assertTrue("Check the neighbors of eye00", eye00.getNeighbors().contains(cluster10.getRep()));
+		assertTrue("Check the neighbors of cluste01", cluster01.getNeighbors().contains(eye00));
+		assertTrue("Check the neighbors of eye00", eye00.getNeighbors().contains(cluster01));
+		assertTrue("Check the neighbors of eye00", eye00.getNeighbors().contains(cluster10));
 		logger.info("Eye: " + eye00.toString(true));
 		assertEquals("Eye at [0, 0] should have 2 neighbors", 2, eye00.getNeighbors().size());
 		goban.move(0, 0, BoardType.BLACK);
@@ -119,6 +119,17 @@ public class AnalysisGobanTest extends GobanTest
 		assertTrue("clusters should no longer contain cluster00", !goban.clusters.contains(cluster00));
 		assertTrue("clusters should no longer contain eye12", !goban.clusters.contains(eye12));
 		logger.info(goban.toString());
+ 	}
+ 	
+ 	@Test
+ 	public void testClone() throws Exception
+ 	{
+ 		AnalysisGoban goban = new AnalysisGoban(getGoban("suitability1.sgf"));
+ 		AnalysisGoban clone = goban.clone();
+ 		
+ 		for (Cluster c : clone.clusters) {
+ 			assertTrue("Cloned cluster has no parent: " + c, c.parent != null);
+ 		}
  	}
  	
 }

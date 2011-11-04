@@ -123,7 +123,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		
 		
 		Eye eye = parent.goban.getEye(move);
-		Group group = eye.group;
+		Group group = eye.getGroup();
 		if (group != null)
 		{
 			if (group.isAlive()) return 0;
@@ -150,6 +150,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		AnalysisNode child = new AnalysisNode(this);
 		child.moveNo = moveNo + 1;
 		child.parent = this;
+		child.movingColor = movingColor.opposite();
 		return child;
 	}
 
@@ -162,7 +163,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		//logger.info("createChild: " + p + "\n[" + goban + "]\n[" + child.goban + "]");
 		updateMiai();
 		child.suitability = child.calculateStaticSuitability();
-		child.movingColor = movingColor.opposite();
+
 		return child;
 	}
 	
@@ -361,14 +362,15 @@ class AnalysisNode implements Comparable<AnalysisNode>
 			}
 			for (AnalysisNode child : children)
 			{
-				//logger.info("child=" + child);
 				double value;
-				if (child.getVisits() == 0) 
+				if (child.getVisits() == 0) {
 					value = 1000 + child.suitability;
+				}
 				else {
-					value = 1 + (getValue()) + Math.sqrt(2*Math.log(_visits)/child.getVisits());
+					value = 1 + child.getValue() + Math.sqrt(2*Math.log(_visits)/child.getVisits());
 				}
 
+				//logger.info("child=" + child + ", value=" + value);
 				if (value > max) {
 					boolean illegalKo = false;
 					for (int i=n-1; i>=0; i--)
@@ -395,7 +397,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 				}
 			}
 		}
-		// logger.info("final max=" + max + ", best=" + best);
+		//logger.info("final max=" + max + ", best=" + best);
 		if (best == null) throw new NullPointerException();
 		assert best != null;
 		return best;

@@ -53,9 +53,9 @@ public class AnalysisNodeTest extends GobanTest
 		assertEquals("Chain at [0, 1] should have 3 liberties", 3, chain01.liberties.size());
 		assertTrue("Check that there is now no chain at [0, 0]", cluster00 instanceof Eye);
 		Eye eye00 = (Eye) cluster00;
-		assertTrue("Check the neighbors of cluste01", cluster01.getNeighbors().contains(eye00.getRep()));
-		assertTrue("Check the neighbors of eye00", eye00.getNeighbors().contains(cluster01.getRep()));
-		assertTrue("Check the neighbors of eye00", eye00.getNeighbors().contains(cluster10.getRep()));
+		assertTrue("Check the neighbors of cluste01", cluster01.getNeighbors().contains(eye00));
+		assertTrue("Check the neighbors of eye00", eye00.getNeighbors().contains(cluster01));
+		assertTrue("Check the neighbors of eye00", eye00.getNeighbors().contains(cluster10));
 		logger.info("Eye: " + eye00.toString(true));
 		assertEquals("Eye at [0, 0] should have 2 neighbors", 2, eye00.getNeighbors().size());
 		goban.move(0, 0, BoardType.BLACK);
@@ -133,6 +133,30 @@ public class AnalysisNodeTest extends GobanTest
  		AnalysisNode root = new AnalysisNode(goban, BoardType.BLACK);
  		AnalysisNode child = root.createChild();
  		child.goban.checkGoban();
+ 		
+		for (Cluster c : child.goban.clusters) {
+ 			assertTrue("Child cluster has no parent: " + c, c.parent != null);
+ 		}
+		
+ 		child = child.createChild(new Point(5, 0));
+ 		child.goban.checkGoban();
+		child = child.createChild();
+ 		child.goban.checkGoban();
+ 		{
+ 			int size = goban.getBoardSize();
+ 			StringBuffer sb = new StringBuffer();
+ 			for (int x=0; x<size; x++) {
+ 				sb.append("\n");
+ 				for (int y=0; y<size; y++) {
+ 					AnalysisNode node = child.createChild(new Point(x, y));
+ 					sb.append(String.format("%4.1f ", node.calculateStaticSuitability()));
+ 				}
+ 			}
+		}
+ 		
+		for (Cluster c : child.goban.clusters) {
+ 			assertTrue("Child cluster has no parent: " + c, c.parent != null);
+ 		}
  	}
  	
  	@Test
@@ -161,6 +185,41 @@ public class AnalysisNodeTest extends GobanTest
 					}
 				}
 				logger.info("suitability: " + currentNode.movingColor + "\n" + goban + sb.toString());				
+				break;
+			}
+		} 
+	}
+ 	
+
+ 	@Test
+	public void testSimulation3() throws Exception
+	{
+ 		int size = 9;
+ 		AnalysisNode[] sequence = new AnalysisNode[200];
+ 		AnalysisGoban goban = new AnalysisGoban(getGoban("lifeAndDeath1.sgf"));
+ 		AnalysisNode root = new AnalysisNode(goban, BoardType.WHITE);
+ 		AnalysisNode currentNode = root.createChild(new Point(5, 0));
+ 		
+ 		
+		int i = 0;
+		sequence[0] = currentNode;
+		while (true) {
+			StringBuffer sb = new StringBuffer();
+			for (int x=0; x<size; x++) {
+				sb.append("\n");
+				for (int y=0; y<size; y++) {
+					AnalysisNode node = currentNode.createChild(new Point(x, y));
+					sb.append(String.format("%4.1f ", node.calculateStaticSuitability()));
+				}
+			}
+			logger.info("suitability: " + currentNode.movingColor + "\n" + currentNode.goban + sb.toString());				
+
+			sequence[++i] = currentNode = currentNode.selectRandomMCMove(sequence, i);
+			goban = currentNode.goban;
+			logger.info("move " + i + ": " + currentNode);			
+			checkGoban(goban);
+			if (currentNode.isPass() && currentNode.parent.isPass()) {	
+				logger.info("score is " + currentNode.evaluateByScoring(null));
 				break;
 			}
 		} 

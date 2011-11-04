@@ -1,12 +1,8 @@
 package de.cgawron.go.montecarlo;
 
-import static org.junit.Assert.assertTrue;
-
 import java.io.File;
 
 import de.cgawron.go.Goban;
-import de.cgawron.go.Point;
-import de.cgawron.go.montecarlo.AnalysisGoban.Cluster;
 import de.cgawron.go.sgf.GameTree;
 
 public class GobanTest {
