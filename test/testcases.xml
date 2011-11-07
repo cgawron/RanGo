@@ -2,7 +2,7 @@
 <testcases>
 
 	<!--  default parameters -->
-	<evaluatorParameters numSimulations="500" />
+	<evaluatorParameters numSimulations="10000" />
 	
 	
 	<testcase sgfFile="ko1.sgf" movingColor="black" komi="10" expectedScore="15">

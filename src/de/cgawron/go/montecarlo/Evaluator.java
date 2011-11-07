@@ -20,7 +20,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EventListener;
 import java.util.EventObject;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -83,6 +82,32 @@ public class Evaluator
 		public void stateChanged(EvaluatorEvent event);
 	}
 
+	public static class EvaluatorParameters 
+	{
+		@XmlAttribute
+		public int maxMoves = 200;
+		
+		@XmlAttribute
+		public int numSimulations = 2000;
+		
+		@XmlAttribute
+		public int numThreads = 1;
+		
+		@XmlAttribute
+		public int steepness = 1;
+		
+		@XmlAttribute
+		public boolean checkTerritory = true;
+
+		@Override
+		public String toString() {
+			return "EvaluatorParameters [maxMoves=" + maxMoves
+					+ ", numSimulations=" + numSimulations + ", numThreads="
+					+ numThreads + ", steepness=" + steepness + "]";
+		}
+		
+	}
+
 	public class RandomSimulator implements Runnable
 	{
 		private final AnalysisNode node;
@@ -107,31 +132,16 @@ public class Evaluator
 		}
 	}
 
-	public static class EvaluatorParameters 
-	{
-		@XmlAttribute
-		public int maxMoves = 200;
-		
-		@XmlAttribute
-		public int numSimulations = 2000;
-		
-		@XmlAttribute
-		public int numThreads = 1;
-		
-		@XmlAttribute
-		public int steepness = 1;
-
-		@Override
-		public String toString() {
-			return "EvaluatorParameters [maxMoves=" + maxMoves
-					+ ", numSimulations=" + numSimulations + ", numThreads="
-					+ numThreads + ", steepness=" + steepness + "]";
-		}
-		
-	}
-
 	final static Logger logger = Logger.getLogger(Evaluator.class.getName());
-
+ 
+	
+	public static EvaluatorParameters parameters;
+	
+	public static int chineseScore(AnalysisNode node, double[][] territory)
+	{
+		return node.goban.chineseScore(territory);
+	}
+	
 	/**
 	 * Calculate the chinese score of a Goban position.
 	 */
@@ -140,12 +150,7 @@ public class Evaluator
 		int score = goban.chineseScore(territory);
 		return score;
 	}
-	
-	public static int chineseScore(AnalysisNode node, double[][] territory)
-	{
-		return node.goban.chineseScore(territory);
-	}
-	
+
 	public static void main(String[] args) throws Exception
 	{
 		File inputFile = new File("test/sgf", "lifeAndDeath1.sgf");
@@ -155,11 +160,10 @@ public class Evaluator
 		double score = evaluator.evaluate(goban, BoardType.BLACK, 15);
 		logger.info("score=" + score);
 	}
-
-	public static EvaluatorParameters parameters;
 	private ExecutorService executor;
 	private List<EvaluatorListener> listeners = new ArrayList<EvaluatorListener>();
 	private int simulation;
+	private double[][] territory;
 
 	Map<AnalysisNode, AnalysisNode> workingTree;
 
@@ -169,14 +173,38 @@ public class Evaluator
 		workingTree = new WeakHashMap<AnalysisNode, AnalysisNode>();
 	}
 
-	public void setParameters(EvaluatorParameters parameters) 
-	{
-		this.parameters = parameters;
-	}
-
 	public void addEvaluatorListener(EvaluatorListener listener)
 	{
 		listeners.add(listener);
+	}
+
+	protected void createNode(AnalysisNode node)
+	{
+		if (workingTree.containsKey(node)) {
+			// logger.info("Node " + node + " already present!");
+			return;
+		}
+		
+		synchronized (node) {
+		node.children = new HashSet<AnalysisNode>();
+		workingTree.put(node, node);
+
+		for (Point p : Point.all(node.boardSize)) {
+			AnalysisNode child = node.createChild(p);
+			if (child.suitability > 0) {
+				if (workingTree.containsKey(child.goban)) {
+					child = workingTree.get(child.goban);
+				}
+				node.children.add(child);
+			}
+		}
+		AnalysisNode child = node.createPassNode();
+		child.value = 0.1;
+		if (workingTree.containsKey(child.goban)) {
+			child = workingTree.get(child.goban);
+		}
+		node.children.add(child);
+		}
 	}
 	
 
@@ -189,7 +217,7 @@ public class Evaluator
 			@Override
 			public int compare(AnalysisNode a, AnalysisNode b)
 			{
-				return -Double.compare(a.getValue(), b.getValue());
+				return -((Integer) a.getVisits()).compareTo(b.getVisits());
 			}
 		};
 		SortedSet<AnalysisNode> currentLevel = new TreeSet<AnalysisNode>(
@@ -214,47 +242,20 @@ public class Evaluator
 	}
 
 	/** Evaluates the score of a Goban */
-	public double evaluate(AnalysisNode root)
-	{
-		if (true) return evaluateWithExecutor(root);
-		
-		//FIXME How can we avoid this?
-		workingTree.clear();
-		
-		createNode(root);
-		double[][] territory = null; // new double[boardSize][boardSize];
-
-
-		for (simulation = 0; simulation < parameters.numSimulations; simulation++) {
-			Runnable simulation = new RandomSimulator(root, territory);
-			simulation.run();
-		}
-
-		StringBuffer sb = new StringBuffer();
-		/*
-		 * for (AnalysisGoban goban : root.children) { sb.append("\n"); for (int
-		 * j=0; j<boardSize; j++) { if (wins[i][j] > 0)
-		 * sb.append(String.format(" %3.1f", wins[i][j])); else { switch
-		 * (root.goban.getStone(i, j)) { case WHITE: sb.append("  O "); break;
-		 * case BLACK: sb.append("  X "); break; case EMPTY: sb.append("  . ");
-		 * break; } } } }
-		 */
-
-		dumpTree(logger, root, 3, 30);
-
-		logger.info("best: " + root.getBestChild());
-		return root.getScore();
-	}
 
 	
 	/** Evaluates the score of a Goban */
-	public double evaluateWithExecutor(AnalysisNode root)
+	public double evaluate(AnalysisNode root)
 	{
 		//FIXME How can we avoid this?
 		workingTree.clear();
 		
+		int boardSize = root.boardSize;
 		createNode(root);
-		double[][] territory = null; // new double[boardSize][boardSize];
+		if (parameters.checkTerritory)
+			territory = new double[boardSize][boardSize];
+		else
+			territory = null;
 
 		Queue<Future<?>> workQueue = new LinkedList<Future<?>>();
 
@@ -272,7 +273,7 @@ public class Evaluator
 				future = workQueue.peek();
 				if (!future.isDone()) {
 					logger.info("still " + workQueue.size()
-							+ " simulations outstanding, value=" + root.getValue());
+							+ " simulations outstanding, value=" + root.getValue() + ", tree size=" + workingTree.size());
 					fireStillWorking(root, workQueue.size(), parameters.numSimulations);
 					Thread.sleep(500);
 					continue;
@@ -287,25 +288,19 @@ public class Evaluator
 		fireDone(root, parameters.numSimulations);
 
 		StringBuffer sb = new StringBuffer();
-		/*
-		 * for (AnalysisGoban goban : root.children) { sb.append("\n"); for (int
-		 * j=0; j<boardSize; j++) { if (wins[i][j] > 0)
-		 * sb.append(String.format(" %3.1f", wins[i][j])); else { switch
-		 * (root.goban.getStone(i, j)) { case WHITE: sb.append("  O "); break;
-		 * case BLACK: sb.append("  X "); break; case EMPTY: sb.append("  . ");
-		 * break; } } } }
-		 */
-
+		if (territory != null) {
+			for (int i = 0; i < boardSize; i++) {
+				sb.append("\n");
+				for (int j = 0; j < boardSize; j++) {
+					sb.append(String.format(" %3.1f", territory[i][j]/parameters.numSimulations));
+				}
+			}
+		}
+		
 		dumpTree(logger, root, 3, 30);
 
-		logger.info("best: " + root.getBestChild());
+		logger.info("best: " + root.getBestChild() + sb.toString());
 		return root.getScore();
-	}
-
-	public ExecutorService getExecutor() {
-		if (executor == null)
-			executor = Executors.newFixedThreadPool(parameters.numThreads);
-		return executor;
 	}
 
 	/** Evaluates the score of a Goban */
@@ -359,7 +354,7 @@ public class Evaluator
 		updateValues(sequence, i, value, score);
 
 	}
-
+	
 	private void fireDone(AnalysisNode root, int numSimulations)
 	{
 		EvaluatorEvent event = new EvaluatorEvent(root, 0, numSimulations);
@@ -376,33 +371,15 @@ public class Evaluator
 		}
 	}
 
-	protected void createNode(AnalysisNode node)
-	{
-		if (workingTree.containsKey(node)) {
-			logger.info("Node " + node + " already present!");
-			return;
-		}
-		
-		synchronized (node) {
-		node.children = new HashSet<AnalysisNode>();
-		workingTree.put(node, node);
+	public ExecutorService getExecutor() {
+		if (executor == null)
+			executor = Executors.newFixedThreadPool(parameters.numThreads);
+		return executor;
+	}
 
-		for (Point p : Point.all(node.boardSize)) {
-			AnalysisNode child = node.createChild(p);
-			if (child.suitability > 0) {
-				if (workingTree.containsKey(child.goban)) {
-					child = workingTree.get(child.goban);
-				}
-				node.children.add(child);
-			}
-		}
-		AnalysisNode child = node.createPassNode();
-		child.value = 0.1;
-		if (workingTree.containsKey(child.goban)) {
-			child = workingTree.get(child.goban);
-		}
-		node.children.add(child);
-		}
+	public void setParameters(EvaluatorParameters parameters) 
+	{
+		Evaluator.parameters = parameters;
 	}
 	
 	protected void updateValues(AnalysisNode[] sequence, int n, double value, double score)

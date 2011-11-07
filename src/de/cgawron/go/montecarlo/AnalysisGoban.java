@@ -542,22 +542,22 @@ public class AnalysisGoban extends AbstractGoban
 		if (territory != null) {
 			for (Cluster cluster : clusters) {
 				double v = 0;
-				switch (cluster.color) {
+				switch (cluster.getColor()) {
 				case BLACK:
-					v = cluster.size();
+					v = 1;
 					break;
 					
 				case WHITE:
-					v = -cluster.size();
+					v = -1;
 					break;
 
 				case EMPTY:
-					v = Math.signum(scoreEmpty(cluster)) * cluster.size();
+					v = Math.signum(scoreEmpty(cluster));
 					break;
 				}
 				
 				for (Point p : cluster.getPoints()) {
-					territory[p.getX()][p.getY()] = v;
+					territory[p.getX()][p.getY()] += v;
 				}
 			}
 		}
