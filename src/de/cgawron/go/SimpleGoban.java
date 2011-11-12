@@ -331,7 +331,7 @@ public class SimpleGoban extends AbstractGoban
 			area.add(p);
 			score++;
 			tmpBoard[p.getX()][p.getY()] = visited;
-			for (Point n : new Neighborhood(this, p)) {
+			for (Point n : new Neighborhood(this.getBoardSize(), p)) {
 				if (tmpBoard[n.getX()][n.getY()] == visited) continue;
 				else {
 					switch(boardRep[n.getX()][n.getY()]) {

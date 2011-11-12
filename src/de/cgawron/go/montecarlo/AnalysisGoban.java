@@ -1,7 +1,5 @@
 package de.cgawron.go.montecarlo;
 
-import static org.junit.Assert.assertTrue;
-
 import java.util.AbstractCollection;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -16,7 +14,6 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.logging.Level;
 
 import de.cgawron.go.AbstractGoban;
 import de.cgawron.go.Goban;
@@ -359,6 +356,24 @@ public class AnalysisGoban extends AbstractGoban
 			}
 		}
 
+		public void setGroup(Group group) {
+			if (parent != null) copy();
+			
+			if (this.group == null) {
+				this.group = group;
+			}
+			else {
+				throw new RuntimeException("there is already a group");
+			}
+		}
+
+		public Group getGroup() {
+			if (parent != null)
+				return parent.group;
+			else
+				return group;
+		}
+
 	}
 	
 	public class Eye extends Cluster  
@@ -396,7 +411,9 @@ public class AnalysisGoban extends AbstractGoban
 			eyeColor = null;
 			boolean touchWhite = false;
 			boolean touchBlack = false;
+			List<Group> groups = new ArrayList<Group>();
 			for (Cluster n : getNeighbors()) {
+				if (n.getGroup() != null) groups.add(n.getGroup());
 				if (n.getColor() == BoardType.WHITE) touchWhite = true;
 				else if (n.getColor() == BoardType.BLACK) touchBlack = true;
 			}
@@ -404,16 +421,21 @@ public class AnalysisGoban extends AbstractGoban
 			if (touchBlack && touchWhite) {
 				group = null;
 			}
-			else if (touchWhite) {
-				eyeColor = BoardType.WHITE;	
+			else if (groups.size() > 0) {
+				this.group = groups.remove(0);
+				for (Group g : groups) {
+					group.join(g);
+				}
 			}
-			else if (touchBlack) {
-				eyeColor = BoardType.BLACK;
-			}
-			if (eyeColor != null) {
+			else {
+				if (touchWhite) {
+					eyeColor = BoardType.WHITE;	
+				}
+				else {
+					eyeColor = BoardType.BLACK;
+				}
 				group = new Group(this, getNeighbors(), eyeColor);
 			}
-				
 		}
 
 		public final BoardType getEyeColor() {
@@ -438,17 +460,25 @@ public class AnalysisGoban extends AbstractGoban
 			return goban.new Eye(this);
 		}
 
-		protected Group getGroup() 
-		{
-			if (parent != null)
-				return ((Eye) parent).group;
+		public boolean isVitalPoint(Point move) {
+			// Eyes with less than 3 or more than 7 points have no vital points
+			if (size() < 3 || size() > 7) return false;
+			
+			int neighbors = getAdjacentPointCount(move);
+			// FIXME: That is not entirely correct (hana-roku and border groups)
+			if (neighbors >= size()-1)
+				return true;
 			else
-				return group;
+				return false;
 		}
 
-		public boolean isVitalPoint(Point move) {
-			// FIXME
-			return true;
+		private int getAdjacentPointCount(Point move) {
+			Set<Point> points = getPoints();
+			int count=0;
+			for (Point p : move.neighbors(AnalysisGoban.this)) {
+				if (points.contains(p)) count++;
+			}
+			return count;
 		}
 
 		@Override
@@ -478,9 +508,20 @@ public class AnalysisGoban extends AbstractGoban
 			this.color = color;
 			for (Cluster c : chains) {
 				this.chains.add(c.getRep());
+				c.setGroup(this);
 			}
+			initGroup();
 		}
 		
+		public void join(Group g) {
+			// TODO Auto-generated method stub
+			throw new RuntimeException("not yet implemented");
+		}
+
+		private void initGroup() {
+			// TODO
+		}
+
 		public boolean isAlive() {
 			if (eyes.size() >= 2)
 				return true;
@@ -495,12 +536,14 @@ public class AnalysisGoban extends AbstractGoban
 	}
 
 	protected Set<Cluster> clusters;
+	protected Set<Group> groups;
 	Cluster[] boardRep;
 	private int _hash;
 	private List<Point> allPoints;
 
 	public AnalysisGoban() {
 		clusters = new HashSet<Cluster>();
+		groups = new HashSet<Group>();
 	}
 	
 	public AnalysisGoban(Goban goban) {
@@ -968,8 +1011,7 @@ public class AnalysisGoban extends AbstractGoban
 
 	@Override
 	public void setBoardSize(int size) {
-		// TODO Auto-generated method stub
-		throw new RuntimeException("not yet implemented");
+		throw new RuntimeException("not (yet) implemented");
 	}
 
 	@Override

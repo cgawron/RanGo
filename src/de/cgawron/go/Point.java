@@ -303,7 +303,7 @@ public class Point implements Comparable<Point>
 	
 	public Iterable<Point> neighbors(Goban goban) {
 		if (neighbors == null)
-			neighbors = new Neighborhood(goban, this);
+			neighbors = new Neighborhood(goban.getBoardSize(), this);
 		return neighbors;
 	}
 

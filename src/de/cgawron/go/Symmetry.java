@@ -45,7 +45,7 @@ public class Symmetry
 	 * (i=0; i<16; i++) cache[i] = new Symmetry(i); }
 	 */
 
-	public static class Iterator implements java.util.Iterator
+	public static class Iterator implements java.util.Iterator<Symmetry>
 	{
 		private int i = -1;
 
@@ -54,7 +54,7 @@ public class Symmetry
 			return i < 7;
 		}
 
-		public Object next()
+		public Symmetry next()
 		{
 			return new Symmetry(++i);
 		}
@@ -65,7 +65,7 @@ public class Symmetry
 		}
 	}
 
-	public static class SpatialIterator implements java.util.Iterator
+	public static class SpatialIterator implements java.util.Iterator<Symmetry>
 	{
 		private int i = -1;
 
@@ -74,7 +74,7 @@ public class Symmetry
 			return i < 7;
 		}
 
-		public Object next()
+		public Symmetry next()
 		{
 			return new Symmetry(++i);
 		}

@@ -14,9 +14,6 @@
 package de.cgawron.go;
 
 import java.util.logging.Logger;
-import de.cgawron.go.Goban.BoardType;
-import de.cgawron.go.Point;
-import de.cgawron.go.MutablePoint;
 
 /**
  * This class describes the symmetry group of a position on a goban. For
@@ -63,7 +60,7 @@ public class SymmetryGroup
 			return i < 8;
 		}
 
-		public Object next()
+		public Symmetry next()
 		{
 			Symmetry s = new Symmetry(i);
 			for (i++; i < 16 && (symmetries & (1 << i)) == 0; i++)

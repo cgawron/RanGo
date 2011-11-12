@@ -15,7 +15,6 @@
  */
 package de.cgawron.go.montecarlo;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EventListener;
@@ -39,7 +38,6 @@ import javax.xml.bind.annotation.XmlAttribute;
 import de.cgawron.go.Goban;
 import de.cgawron.go.Goban.BoardType;
 import de.cgawron.go.Point;
-import de.cgawron.go.sgf.GameTree;
 
 /**
  * Evaluate a Node using Monte Carlo simulation
@@ -88,7 +86,7 @@ public class Evaluator
 		public int maxMoves = 200;
 		
 		@XmlAttribute
-		public int numSimulations = 2000;
+		public int numSimulations = 10000;
 		
 		@XmlAttribute
 		public int numThreads = 1;
@@ -142,24 +140,7 @@ public class Evaluator
 		return node.goban.chineseScore(territory);
 	}
 	
-	/**
-	 * Calculate the chinese score of a Goban position.
-	 */
-	public static int chineseScore(OldAnalysisGoban goban, double[][] territory)
-	{
-		int score = goban.chineseScore(territory);
-		return score;
-	}
-
-	public static void main(String[] args) throws Exception
-	{
-		File inputFile = new File("test/sgf", "lifeAndDeath1.sgf");
-		GameTree gameTree = new GameTree(inputFile);
-		Goban goban = gameTree.getLeafs().get(0).getGoban();
-		Evaluator evaluator = new Evaluator();
-		double score = evaluator.evaluate(goban, BoardType.BLACK, 15);
-		logger.info("score=" + score);
-	}
+	
 	private ExecutorService executor;
 	private List<EvaluatorListener> listeners = new ArrayList<EvaluatorListener>();
 	private int simulation;

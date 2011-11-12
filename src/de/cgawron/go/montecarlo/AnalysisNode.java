@@ -12,7 +12,6 @@ import de.cgawron.go.GobanMap;
 import de.cgawron.go.Point;
 import de.cgawron.go.montecarlo.AnalysisGoban.Eye;
 import de.cgawron.go.montecarlo.AnalysisGoban.Group;
-import de.cgawron.go.montecarlo.Evaluator.EvaluatorParameters;
 
 class AnalysisNode implements Comparable<AnalysisNode>
 {

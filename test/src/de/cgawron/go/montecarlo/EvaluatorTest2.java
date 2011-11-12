@@ -56,11 +56,4 @@ public class EvaluatorTest2
 		assertEquals("Testing expected score", expectedScore, score, 2);
 	}
 	
-	@Test
-	public void testEvaluateUCT1() {
-		Evaluator evaluator = new Evaluator();
-		goban = new OldAnalysisGoban(7);
-		double score = evaluator.evaluate(goban, movingColor, 4);
-		assertEquals("Testing expected score", expectedScore, score, 2);
-	}
 }
