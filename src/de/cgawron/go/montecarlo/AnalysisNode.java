@@ -331,13 +331,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 			random -= entry.getValue() / totalSuitability;
 			if (random < 0) {
 				AnalysisNode node = entry.getKey();
-				boolean illegalKo = false;
-				for (int i=n-1; i>=0; i--)
-				{
-					if (sequence[i].goban.equals(node.goban))
-						illegalKo = true;
-				}
-				if (!illegalKo)
+				if (!isIllegalKo(node, sequence, n))
 					return node;
 			}
 		}
@@ -370,26 +364,8 @@ class AnalysisNode implements Comparable<AnalysisNode>
 				}
 
 				//logger.info("child=" + child + ", value=" + value);
-				if (value > max) {
-					boolean illegalKo = false;
-					for (int i=n-1; i>=0; i--)
-					{
-						if (sequence[i].goban.equals(child.goban)) {
-							// FIXME
-							illegalKo = true;
-							break;
-						}
-					}
-					AnalysisNode node = sequence[0];
-					while (node.parent != null) {
-						node = node.parent;
-						if (node.goban.equals(child.goban)) {
-							// FIXME!
-							illegalKo = true;
-							break;
-						}
-					}
-					if (!illegalKo || (move == null)) {
+				if (value > max) {								
+					if (!isIllegalKo(child, sequence, n) || (move == null)) {
 						best = child;
 						max = value;
 					}
@@ -400,6 +376,28 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		if (best == null) throw new NullPointerException();
 		assert best != null;
 		return best;
+	}
+
+	private boolean isIllegalKo(AnalysisNode child, AnalysisNode[] sequence, int n) {
+		boolean illegalKo = false;
+		for (int i=n-1; i>=0; i--)
+		{
+			if (sequence[i].goban.equals(child.goban)) {
+				// FIXME
+				illegalKo = true;
+				break;
+			}
+		}
+		AnalysisNode node = sequence[0];
+		while (node.parent != null) {
+			node = node.parent;
+			if (node.goban.equals(child.goban)) {
+				// FIXME!
+				illegalKo = true;
+				break;
+			}
+		}
+		return illegalKo;
 	}
 
 	@Override

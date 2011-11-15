@@ -362,7 +362,7 @@ public class AnalysisGoban extends AbstractGoban
 			if (this.group == null) {
 				this.group = group;
 			}
-			else {
+			else if (this.group != group) {
 				throw new RuntimeException("there is already a group");
 			}
 		}
@@ -424,7 +424,7 @@ public class AnalysisGoban extends AbstractGoban
 			else if (groups.size() > 0) {
 				this.group = groups.remove(0);
 				for (Group g : groups) {
-					group.join(g);
+					//group.join(g);
 				}
 			}
 			else {

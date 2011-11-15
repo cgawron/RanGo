@@ -39,6 +39,7 @@ public class Play extends JFrame implements Evaluator.EvaluatorListener
 	private JTextField value;
 	private JTextField simulations;
 
+	@SuppressWarnings("serial")
 	private class PlayAction extends JGoban.GobanAction
 	{
 		@Override
@@ -50,6 +51,7 @@ public class Play extends JFrame implements Evaluator.EvaluatorListener
 	public Play() throws HeadlessException {
 		super();
 		goban.putStone(1, 2, BoardType.BLACK);
+		//playComputerMove();
 		goban.resetMarkup();
 		
 		setTitle("RanGo");
@@ -134,9 +136,6 @@ public class Play extends JFrame implements Evaluator.EvaluatorListener
 		
 		JLabel lblSimulations = new JLabel("Simulations");
 		evaluatorPanel.add(lblSimulations, "2, 20, right, default");
-		
-		
-		//goban.putStone(5, 5, BoardType.BLACK);
 	}
 
 	protected void play(JGoban.GobanActionEvent e) {
@@ -144,6 +143,11 @@ public class Play extends JFrame implements Evaluator.EvaluatorListener
 		goban.move(e.getPoint(), BoardType.WHITE);
 		goban.resetMarkup();
 		gobanUI.setEnabled(false);
+		
+		playComputerMove();
+	}
+
+	protected void playComputerMove() {
 		final BoardType movingColor = BoardType.BLACK;
 		
 		SwingWorker<String, Object> move = new SwingWorker<String, Object>()
@@ -168,7 +172,7 @@ public class Play extends JFrame implements Evaluator.EvaluatorListener
 
 		move.execute();
 	}
-
+	
 	protected void resign()
 	{
 		JOptionPane.showMessageDialog(rootPane, "I resign", "Game over", JOptionPane.OK_OPTION);

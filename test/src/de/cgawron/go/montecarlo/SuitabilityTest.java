@@ -3,49 +3,23 @@
  */
 package de.cgawron.go.montecarlo;
 
-import static org.junit.Assert.*;
-
-import java.io.File;
-import java.util.Arrays;
-import java.util.List;
+import static org.junit.Assert.assertTrue;
 import java.util.logging.Logger;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
 
-import de.cgawron.go.Goban;
 import de.cgawron.go.Goban.BoardType;
 import de.cgawron.go.Point;
-import de.cgawron.go.sgf.GameTree;
 
 /**
- * Test class for (static) chinese scoring, i.e. assuming all stones are alive.
+ * Test class for suitability.
  * @author Christian Gawron
  */
-@RunWith(Parameterized.class)
 public class SuitabilityTest {
 	private static Logger logger = Logger.getLogger(SuitabilityTest.class.getName());
 	
-	@Parameters
-    public static List<Object[]> data() {
-            return Arrays.asList(new Object[][] { 
-            			{ "suitability1.sgf", BoardType.BLACK },
-               			{ "suitability1.sgf", BoardType.WHITE },
-               			{ "lifeAndDeath1.sgf", BoardType.WHITE }
-            });
-    }
-    
-    private Goban goban;
-    private BoardType movingColor;
-    private File baseDir = new File("test/sgf");
-    
-    public SuitabilityTest(String inputSGF, BoardType movingColor) throws Exception {
-    	File inputFile = new File(baseDir, inputSGF);
-    	GameTree gameTree = new GameTree(inputFile);
-    	goban = gameTree.getLeafs().get(0).getGoban();
-    	this.movingColor = movingColor;
+      
+    public SuitabilityTest() throws Exception {
     }
     
 	/**
@@ -54,10 +28,37 @@ public class SuitabilityTest {
 	@Test
 	public void testSuitability() 
 	{
-		AnalysisNode parent = new AnalysisNode(goban, movingColor);
+ 		AnalysisGoban goban = new AnalysisGoban(7);
+ 		AnalysisNode root = new AnalysisNode(goban, BoardType.BLACK);
+ 		AnalysisNode child = root.createChild(new Point(0, 1));
+		child = child.createPassNode();
+		child = child.createChild(new Point(1, 0));
+		child = child.createPassNode();
+		child = child.createChild(new Point(1, 1));
+		child = child.createPassNode();
+		child = child.createChild(new Point(1, 2));
+		child = child.createPassNode();
+		child = child.createChild(new Point(1, 3));
+		child = child.createPassNode();
+		child = child.createChild(new Point(0, 3));
+		child = child.createPassNode();
+
+ 		logSuitability(child);
+ 		assertUnsuitable(child, 0, 0);
+ 		assertUnsuitable(child, 0, 2);
+	}
+
+	private void assertUnsuitable(AnalysisNode child, int i, int j) 
+	{
+		Point p = new Point(i, j);
+		double suitability = child.createChild(p).calculateStaticSuitability();
+		assertTrue("move on " + p + " for " + child + " should have suitability 0", suitability == 0);
+	}
+
+	private void logSuitability(AnalysisNode parent) 
+	{
 		AnalysisNode node;
-		int size = goban.getBoardSize();
-		//double[][] suitability = new double[size][size];
+		int size = parent.goban.getBoardSize();
 		StringBuffer sb = new StringBuffer();
 		for (int i=0; i<size; i++) {
 			sb.append("\n");
@@ -66,8 +67,8 @@ public class SuitabilityTest {
 				sb.append(String.format("%4.1f ", node.calculateStaticSuitability()));
 			}
 		}
-		logger.info("suitability: " + movingColor + "\n" + goban + sb.toString());
-		//assertEquals("Testing expected score", expectedScore, score, 0.2);
+		logger.info("suitability: " + parent.movingColor + "\n" + parent.goban + sb.toString());
+
 	}
 
 }
