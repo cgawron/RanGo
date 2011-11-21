@@ -4,6 +4,7 @@
 package de.cgawron.go.montecarlo;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.logging.Logger;
@@ -15,6 +16,7 @@ import de.cgawron.go.Point;
 import de.cgawron.go.montecarlo.AnalysisGoban.Chain;
 import de.cgawron.go.montecarlo.AnalysisGoban.Cluster;
 import de.cgawron.go.montecarlo.AnalysisGoban.Eye;
+import de.cgawron.go.montecarlo.AnalysisGoban.Group;
 
 /**
  * Test class for AnalysisGoban
@@ -67,7 +69,34 @@ public class AnalysisGobanTest extends GobanTest
 		goban.move(0, 0, BoardType.BLACK);
 		logger.info(goban.toString());
 	}
+ 	
+ 	@Test
+ 	public void testGroup() 
+	{
+ 		AnalysisGoban goban = new AnalysisGoban(7);
+ 		goban.move(1, 0, BoardType.BLACK);
+ 		goban.move(5, 5, BoardType.WHITE);
+		goban.move(0, 1, BoardType.BLACK);
+		goban.move(1, 1, BoardType.BLACK);
+		Eye eye00 = (Eye) goban.getBoardRep(0, 0);
+		Group g = eye00.getGroup();
+		assertTrue("g should only have one chain", g.chains.size() == 1);
+		goban.move(1, 2, BoardType.BLACK);
+		goban.move(1, 3, BoardType.BLACK);
+		goban.move(0, 3, BoardType.BLACK);
+		
 
+		Eye eye02 = (Eye) goban.getBoardRep(0, 2);
+		
+		assertNotNull(g);
+		logger.info("Group: " + g);
+		assertTrue("eye00 should be a real eye", eye00.isReal());
+		assertTrue("eye02 should be a real eye", eye02.isReal());
+		assertTrue("g should contain eye00", g.eyes.contains(eye00));
+		assertTrue("g should contain eye02", g.eyes.contains(eye02));
+		assertTrue("g should be alive", g.isAlive());
+	}
+ 	
 	@Test
 	public void testJoin() 
 	{

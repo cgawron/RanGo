@@ -39,9 +39,14 @@ public class EyeTest extends GobanTest
  		
  		Eye eye;
  		eye = goban.getEye(new Point(4, 0));
+ 		logger.info("goban: " + goban);
  		assertTrue(eye.getGroup() != null);
+ 		logger.info("eye: " + eye.toString(true));
+ 		// This does not work yet - living group which is not connected
+ 		assertTrue(eye.isReal());
  		eye = goban.getEye(new Point(5, 1));
  		assertTrue(eye.getGroup() != null);
+ 		assertTrue(eye.isReal());
 	}
 
 }

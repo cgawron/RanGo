@@ -100,6 +100,12 @@ public class AnalysisGoban extends AbstractGoban
 			}
 			removeNeighbor(chain);
 			liberties.addAll(chain.getLiberties());
+			if (group != null) {
+				if (group != chain.getGroup()) {
+					group.join(chain.getGroup());
+				}
+				group.chains.remove(chain.getRep());			
+			}
 			goban.clusters.remove(chain);
 		}
 
@@ -128,7 +134,7 @@ public class AnalysisGoban extends AbstractGoban
 	 * @author Christian Gawron
 	 *
 	 */
-	public abstract class Cluster
+	public abstract class Cluster implements Comparable<Cluster>
 	{
 		private class NeighborCollection extends AbstractCollection<Cluster> {
 			
@@ -239,6 +245,15 @@ public class AnalysisGoban extends AbstractGoban
 		
 		public abstract Cluster clone(AnalysisGoban goban);
 		
+		@Override
+		public int compareTo(Cluster cluster) 
+		{
+			if (cluster == this) 
+				return 0;
+			else 
+				return getRep().compareTo(cluster.getRep());
+		}
+		
 		protected void copy() 
 		{
 			if (parent != null) {
@@ -262,7 +277,7 @@ public class AnalysisGoban extends AbstractGoban
 			return neighborCollection;
 		}
 
-		private final Set<Point> getNeighborReps() {
+		protected final Set<Point> getNeighborReps() {
 			if (parent != null) return parent.neighbors;
 			else return neighbors;
 		}
@@ -376,7 +391,7 @@ public class AnalysisGoban extends AbstractGoban
 
 	}
 	
-	public class Eye extends Cluster  
+	public class Eye extends Cluster
 	{
 		/** This eye is definitely a real eye for a group */
 		private boolean real;
@@ -446,7 +461,8 @@ public class AnalysisGoban extends AbstractGoban
 		}
 
 		protected boolean isReal() {
-			return real;
+			// FIXME: That's not completely correct!
+			return getNeighborReps().size() == 1;
 		}
 
 		protected void copy() 
@@ -532,6 +548,10 @@ public class AnalysisGoban extends AbstractGoban
 		@Override
 		public String toString() {
 			return "Group [chains=" + chains + ", eyes=" + eyes + "]";
+		}
+
+		public void addEye(Eye eye) {
+			eyes.add(eye);
 		}
 	}
 
@@ -941,11 +961,15 @@ public class AnalysisGoban extends AbstractGoban
 				if (!cluster.points.contains(cluster.rep)) {
 					cluster.updateRep(this);
 				}
-				Cluster empty = new Eye(points, neighbors);
+				Eye empty = new Eye(points, neighbors);
 				clusters.add(empty);
 				for (Point r : neighbors) {
 					Cluster n = getBoardRep(r);
 					n.addNeighbor(empty);
+					Group g = n.getGroup();
+					if (g != null) {
+						g.addEye(empty);
+					}
 				}
 				newEyes.add(empty);
 				for (Point r : points) {
