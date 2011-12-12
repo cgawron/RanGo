@@ -10,12 +10,14 @@ import org.junit.Test;
 
 import de.cgawron.go.Goban.BoardType;
 import de.cgawron.go.Point;
+import de.cgawron.go.montecarlo.AnalysisGoban.Cluster;
+import de.cgawron.go.montecarlo.AnalysisGoban.Group;
 
 /**
  * Test class for suitability.
  * @author Christian Gawron
  */
-public class SuitabilityTest {
+public class SuitabilityTest extends GobanTest {
 	private static Logger logger = Logger.getLogger(SuitabilityTest.class.getName());
 	
       
@@ -46,8 +48,37 @@ public class SuitabilityTest {
  		logSuitability(child);
  		assertUnsuitable(child, 0, 0);
  		assertUnsuitable(child, 0, 2);
+ 		Group g = child.goban.getBoardRep(1, 0).getGroup();
+ 		logger.info("group: " + g);
+ 		assertSuitable(child, 5, 5);
 	}
+	
+ 	@Test 
+ 	public void testEyeFill() throws Exception
+ 	{
+ 		Cluster c;
+ 		AnalysisGoban goban = new AnalysisGoban(getGoban("ko1.sgf"));
+ 		AnalysisNode child= new AnalysisNode(goban, BoardType.WHITE);
+ 		logger.info("testEyeFill: " + child);
+ 		child = child.createChild(new Point(3, 1));
+ 		child = child.createChild(new Point(0, 1));
+ 		logger.info("testEyeFill: " + child);
+ 		logSuitability(child);
+ 		c = child.goban.getBoardRep(new Point(4, 0));
+ 		logger.info("cluster at (4, 0): " + c);
+ 		assertUnsuitable(child, 4, 0);
+  	}
 
+ 	@Test 
+ 	public void testKo() throws Exception
+ 	{
+ 		AnalysisGoban goban = new AnalysisGoban(getGoban("ko1.sgf"));
+ 		AnalysisNode child= new AnalysisNode(goban, BoardType.BLACK);
+ 		logSuitability(child);
+ 		assertSuitable(child, 3, 1);
+  	}
+
+ 	
 	private void assertUnsuitable(AnalysisNode child, int i, int j) 
 	{
 		Point p = new Point(i, j);
@@ -55,6 +86,12 @@ public class SuitabilityTest {
 		assertTrue("move on " + p + " for " + child + " should have suitability 0", suitability == 0);
 	}
 
+	private void assertSuitable(AnalysisNode child, int i, int j) 
+	{
+		Point p = new Point(i, j);
+		double suitability = child.createChild(p).calculateStaticSuitability();
+		assertTrue("move on " + p + " for " + child + " should have suitability > 0", suitability > 0);
+	}
 	private void logSuitability(AnalysisNode parent) 
 	{
 		AnalysisNode node;

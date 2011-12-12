@@ -11,6 +11,7 @@ import org.junit.Test;
 
 import de.cgawron.go.Goban.BoardType;
 import de.cgawron.go.Point;
+import de.cgawron.go.montecarlo.AnalysisGoban.Cluster;
 import de.cgawron.go.montecarlo.AnalysisGoban.Eye;
 
 /**
@@ -49,4 +50,16 @@ public class EyeTest extends GobanTest
  		assertTrue(eye.isReal());
 	}
 
+	
+	@Test 
+ 	public void testOneSpaceEye() throws Exception
+ 	{
+ 		Eye eye;
+ 		AnalysisGoban goban = new AnalysisGoban(getGoban("ko1.sgf"));
+ 		AnalysisNode child= new AnalysisNode(goban, BoardType.WHITE);
+ 		logger.info("testOneSpaceEye: " + child);
+		eye = child.goban.getEye(new Point(4, 0));
+ 		logger.info("testOneSpaceEye: " + eye);
+ 		assertTrue("test that eye is white: ", eye.getEyeColor() == BoardType.WHITE);
+	}
 }

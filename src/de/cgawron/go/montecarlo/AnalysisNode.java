@@ -125,7 +125,12 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		Group group = eye.getGroup();
 		if (group != null)
 		{
-			if (group.isAlive()) return 0;
+			if (group.isAlive()) {
+				if (eye.getPoints().size() > 1 && eye.getPoints().size() < 7) 
+					return 0;
+				else
+					return suitability /= eye.getPoints().size();
+			}
 			else {
 				// FIXME
 				if (eye.getPoints().size() < 7 && eye.isVitalPoint(move))
@@ -331,7 +336,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 			random -= entry.getValue() / totalSuitability;
 			if (random < 0) {
 				AnalysisNode node = entry.getKey();
-				if (!isIllegalKo(node, sequence, n))
+				if (!node.isIllegalKo())
 					return node;
 			}
 		}
@@ -365,7 +370,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 
 				//logger.info("child=" + child + ", value=" + value);
 				if (value > max) {								
-					if (!isIllegalKo(child, sequence, n) || (move == null)) {
+					if (!child.isIllegalKo() || (child.move == null)) {
 						best = child;
 						max = value;
 					}
@@ -378,6 +383,21 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		return best;
 	}
 
+	boolean isIllegalKo() {
+		boolean illegalKo = false;
+		AnalysisNode node = this; 
+		
+		while (node.parent != null) {
+			node = node.parent;
+			if (node.goban.equals(this.goban)) {
+				illegalKo = true;
+				break;
+			}
+		}
+		return illegalKo;
+	}
+	
+	/*
 	private boolean isIllegalKo(AnalysisNode child, AnalysisNode[] sequence, int n) {
 		boolean illegalKo = false;
 		for (int i=n-1; i>=0; i--)
@@ -399,6 +419,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		}
 		return illegalKo;
 	}
+	*/
 
 	@Override
 	public String toString() {

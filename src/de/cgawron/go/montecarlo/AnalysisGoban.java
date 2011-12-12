@@ -102,7 +102,7 @@ public class AnalysisGoban extends AbstractGoban
 			liberties.addAll(chain.getLiberties());
 			if (group != null) {
 				if (group != chain.getGroup()) {
-					group.join(chain.getGroup());
+					group.join(chain.getGroup(), goban);
 				}
 				group.chains.remove(chain.getRep());			
 			}
@@ -372,13 +372,17 @@ public class AnalysisGoban extends AbstractGoban
 		}
 
 		public void setGroup(Group group) {
+			setGroup(group, true);
+		}
+		
+		public void setGroup(Group group, boolean join) {
 			if (parent != null) copy();
 			
 			if (this.group == null) {
 				this.group = group;
 			}
-			else if (this.group != group) {
-				throw new RuntimeException("there is already a group");
+			else if (join && this.group != group) {
+				this.group.join(group, AnalysisGoban.this);
 			}
 		}
 
@@ -436,20 +440,24 @@ public class AnalysisGoban extends AbstractGoban
 			if (touchBlack && touchWhite) {
 				group = null;
 			}
-			else if (groups.size() > 0) {
-				this.group = groups.remove(0);
-				for (Group g : groups) {
-					//group.join(g);
-				}
-			}
-			else {
+			else { 
 				if (touchWhite) {
 					eyeColor = BoardType.WHITE;	
 				}
 				else {
 					eyeColor = BoardType.BLACK;
 				}
-				group = new Group(this, getNeighbors(), eyeColor);
+			
+				if (groups.size() > 0) {
+					this.group = groups.remove(0);
+					for (Group g : groups) {
+						group.join(g, AnalysisGoban.this);
+					}
+				}
+		
+				else {
+					group = new Group(this, getNeighbors(), eyeColor);
+				}	
 			}
 		}
 
@@ -504,7 +512,7 @@ public class AnalysisGoban extends AbstractGoban
 		
 		
 		public String toString(boolean expand) {
-			return "Eye [size=" + size() + ", real=" + real + ", color=" + getColor() + ", rep=" + getRep()
+			return "Eye [size=" + size() + ", real=" + real + ", color=" + getEyeColor() + ", rep=" + getRep()
 					+ (expand ? ", neighbors=" + getNeighbors().toString() + "]" :  "]");
 		}
 
@@ -529,9 +537,14 @@ public class AnalysisGoban extends AbstractGoban
 			initGroup();
 		}
 		
-		public void join(Group g) {
-			// TODO Auto-generated method stub
-			throw new RuntimeException("not yet implemented");
+		public void join(Group g, AnalysisGoban goban) {
+			if (g == null || g == this) return;
+			eyes.addAll(g.eyes);
+			chains.addAll(g.chains);
+			for (Point p : g.chains) {
+				Cluster c = goban.getBoardRep(p);
+				c.setGroup(this, false);
+			}
 		}
 
 		private void initGroup() {

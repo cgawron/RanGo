@@ -92,6 +92,18 @@ public class AnalysisNodeTest extends GobanTest
  		checkGoban(child.goban);
  	}
  
+ 	@Test 
+ 	public void testKo() throws Exception
+ 	{
+ 		AnalysisGoban goban = new AnalysisGoban(getGoban("ko1.sgf"));
+ 		AnalysisNode root = new AnalysisNode(goban, BoardType.BLACK);
+ 		AnalysisNode child = root.createChild(new Point(3, 1));
+ 		logger.info("testKo: " + child);
+ 		assertTrue("check that move is not illegal ko capture", !child.isIllegalKo());
+ 		child = child.createChild(new Point(2, 1));
+ 		assertTrue("check that move is illegal ko capture", child.isIllegalKo());
+ 	}
+ 	
 	@Test
 	public void testEyePartion() 
 	{
