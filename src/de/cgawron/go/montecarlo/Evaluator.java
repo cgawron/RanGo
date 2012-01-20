@@ -40,7 +40,7 @@ import de.cgawron.go.Goban.BoardType;
 import de.cgawron.go.Point;
 
 /**
- * Evaluate a Node using Monte Carlo simulation
+ * Evaluate a Node using Monte Carlo simulation.
  * 
  * @author Christian Gawron
  */
@@ -103,7 +103,6 @@ public class Evaluator
 					+ ", numSimulations=" + numSimulations + ", numThreads="
 					+ numThreads + ", steepness=" + steepness + "]";
 		}
-		
 	}
 
 	public class RandomSimulator implements Runnable
@@ -189,9 +188,14 @@ public class Evaluator
 	}
 	
 
-
-	protected void dumpTree(Logger logger, AnalysisNode root, int depth,
-			int breadth)
+	/**
+	 * Dump the analysis tree to a logger.
+	 * @param logger 
+	 * @param root The root of the tree.
+	 * @param depth The desired depth of the dump.
+	 * @param factor Only siblings with value >= factor * max(values) will be included.
+	 */
+	protected void dumpTree(Logger logger, AnalysisNode root, int depth, double factor)
 	{
 		int d = 0;
 		Comparator<AnalysisNode> valueComparator = new Comparator<AnalysisNode>() {
@@ -201,20 +205,20 @@ public class Evaluator
 				return -((Integer) a.getVisits()).compareTo(b.getVisits());
 			}
 		};
-		SortedSet<AnalysisNode> currentLevel = new TreeSet<AnalysisNode>(
-				valueComparator);
-		SortedSet<AnalysisNode> nextLevel = new TreeSet<AnalysisNode>(
-				valueComparator);
+		SortedSet<AnalysisNode> currentLevel = new TreeSet<AnalysisNode>(valueComparator);
+		SortedSet<AnalysisNode> nextLevel = new TreeSet<AnalysisNode>(valueComparator);
 
 		currentLevel.add(root);
 		while (d < depth) {
 			int b = 0;
+			double best = 0;
 			for (AnalysisNode n : currentLevel) {
-				logger.info("level=" + d + ", n=" + b + ": " + n);
+				if (n.value > best) best = n.value;
+				if (n.value < factor*best)
+					break;
+				logger.info("level=" + d + ", n=" + (b++) + ": " + n);
 				if (n.children != null)
 					nextLevel.addAll(n.children);
-				if (++b >= breadth)
-					break;
 			}
 			d++;
 			currentLevel = nextLevel;
@@ -278,7 +282,7 @@ public class Evaluator
 			}
 		}
 		
-		dumpTree(logger, root, 3, 30);
+		dumpTree(logger, root, 4, 0.25);
 
 		logger.info("best: " + root.getBestChild() + sb.toString());
 		return root.getScore();
@@ -298,7 +302,7 @@ public class Evaluator
 
 		int i = 0;
 		while (sequence[i].children != null) {
-			sequence[i + 1] = sequence[i].selectRandomUCTMove(sequence, i);
+			sequence[i + 1] = sequence[i].selectRandomUCTMove();
 			i++;
 			// logger.info("sequence: i=" + i + ": " + sequence[i].move);
 			if (i > 1 && sequence[i].move == null

@@ -6,6 +6,7 @@
 	
 	
 	<testcase sgfFile="ko1.sgf" movingColor="black" komi="10" expectedScore="15">
+		<evaluatorParameters numSimulations="10000" />
 		<expected x="3" y="1" />
 	</testcase>
 

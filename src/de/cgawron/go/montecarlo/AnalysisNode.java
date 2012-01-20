@@ -13,6 +13,12 @@ import de.cgawron.go.Point;
 import de.cgawron.go.montecarlo.AnalysisGoban.Eye;
 import de.cgawron.go.montecarlo.AnalysisGoban.Group;
 
+/** 
+ * A node in the analysis tree. It contains the move, the @code{AnalysisGoban} and data needed for the UCT algorithm.
+ * 
+ * @author Christian Gawron
+ *
+ */
 class AnalysisNode implements Comparable<AnalysisNode>
 {
 	static Logger logger = Logger.getLogger(AnalysisNode.class.getName());	
@@ -31,7 +37,6 @@ class AnalysisNode implements Comparable<AnalysisNode>
 	double value;
 
 	AnalysisNode parent;
-	//OldAnalysisGoban goban;
 	AnalysisGoban goban;
 	Point move;
 
@@ -200,7 +205,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		
 		int i = n;
 		while (true) {
-			sequence[++i] = currentNode = currentNode.selectRandomMCMove(sequence, i);
+			sequence[++i] = currentNode = currentNode.selectRandomMCMove();
 			if (currentNode.isPass() && currentNode.parent.isPass()) {
 				break;
 			}
@@ -311,7 +316,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 	 * <li> does not fill an own eye.
 	 * </ul>
 	 */
-	protected AnalysisNode selectRandomMCMove(AnalysisNode[] sequence, int n)
+	protected AnalysisNode selectRandomMCMove()
 	{
 		double totalSuitability = 0;
 		Map<AnalysisNode, Double> map = new TreeMap<AnalysisNode, Double>();
@@ -347,7 +352,7 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		return node;
 	}
 
-	protected AnalysisNode selectRandomUCTMove(AnalysisNode[] sequence, int n) 
+	protected AnalysisNode selectRandomUCTMove() 
 	{
 		int _visits = 0;
 		AnalysisNode best = null;

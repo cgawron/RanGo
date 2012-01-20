@@ -183,7 +183,7 @@ public class AnalysisNodeTest extends GobanTest
 		int i = 0;
 		sequence[0] = currentNode;
 		while (true) {
-			sequence[++i] = currentNode = currentNode.selectRandomMCMove(sequence, i);
+			sequence[++i] = currentNode = currentNode.selectRandomMCMove();
 			goban = currentNode.goban;
 			logger.info("move " + i + ": " + currentNode);			
 			checkGoban(goban);
@@ -226,7 +226,7 @@ public class AnalysisNodeTest extends GobanTest
 			}
 			logger.info("suitability: " + currentNode.movingColor + "\n" + currentNode.goban + sb.toString());				
 
-			sequence[++i] = currentNode = currentNode.selectRandomMCMove(sequence, i);
+			sequence[++i] = currentNode = currentNode.selectRandomMCMove();
 			goban = currentNode.goban;
 			logger.info("move " + i + ": " + currentNode);			
 			checkGoban(goban);

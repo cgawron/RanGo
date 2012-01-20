@@ -29,7 +29,7 @@ import de.cgawron.go.sgf.SimpleMarkupModel;
 public class Play extends JFrame implements Evaluator.EvaluatorListener
 {
 	private static final long serialVersionUID = 1L;
-	protected static final double RESIGN = 0.1;
+	protected static final double RESIGN = 0.3;
 	static Logger logger = Logger.getLogger(Play.class.getName());
 	
 	private JGoban gobanUI;
@@ -50,8 +50,7 @@ public class Play extends JFrame implements Evaluator.EvaluatorListener
 	
 	public Play() throws HeadlessException {
 		super();
-		goban.putStone(1, 2, BoardType.BLACK);
-		//playComputerMove();
+		//goban.putStone(1, 2, BoardType.BLACK);
 		goban.resetMarkup();
 		
 		setTitle("RanGo");

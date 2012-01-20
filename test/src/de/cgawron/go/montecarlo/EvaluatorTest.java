@@ -27,6 +27,7 @@ public class EvaluatorTest
       
     public EvaluatorTest(SGFTestCase parameters) throws Exception {
     	this.parameters = parameters;
+    	logger.info("Parameters: " + parameters);
     }
     
     @Test

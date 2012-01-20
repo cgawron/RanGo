@@ -39,12 +39,13 @@ public class EvaluatorTest2
 	@Test
 	public void testCreateNode() {
 		Evaluator evaluator = new Evaluator();
+		
 		AnalysisNode root = new AnalysisNode(goban, movingColor);
 		evaluator.createNode(root);
 		//logger.info("root.children=" + root.children);
-		assertEquals("Number of children", 27, root.children.size());
+		assertEquals("Number of children", 58, root.children.size());
 		assertEquals("Tree size", 1, evaluator.workingTree.size());
-		AnalysisNode node = null;//root.selectRandomUCTMove();
+		AnalysisNode node = root.selectRandomUCTMove();
 		evaluator.createNode(node);
 		assertEquals("Tree size", 2, evaluator.workingTree.size());
 	}
@@ -52,8 +53,9 @@ public class EvaluatorTest2
 	@Test
 	public void testEvaluateUCT() {
 		Evaluator evaluator = new Evaluator();
-		double score = evaluator.evaluate(goban, movingColor, 5);
-		assertEquals("Testing expected score", expectedScore, score, 2);
+		Evaluator.parameters.numSimulations = 1000;
+		double score = evaluator.evaluate(goban, movingColor, 5.5);
+		assertEquals("Testing expected score", 0.5, score, 2);
 	}
 	
 }

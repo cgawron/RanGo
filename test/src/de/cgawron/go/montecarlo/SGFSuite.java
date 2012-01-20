@@ -80,7 +80,7 @@ public class SGFSuite extends Suite {
 	    @XmlAttribute
 	    public double tolerance = 3;
 
-		@XmlElement(name="evaluatorParamters")
+		@XmlElement(name="evaluatorParameters")
 		EvaluatorParameters evaluatorParameters;
 		
 		public SGFTestCase()
@@ -101,7 +101,7 @@ public class SGFSuite extends Suite {
 		public String toString() {
 			return "[file=" + sgfFile + ", movingColor="
 					+ movingColor + ", komi=" + komi + ", expectedMove="
-					+ expectedMove + ", expectedScore=" + expectedScore + "]";
+					+ expectedMove + ", expectedScore=" + expectedScore + ", evaluatorParameters=" + evaluatorParameters + "]";
 		}
 		
 		public Goban getGoban() throws Exception {
