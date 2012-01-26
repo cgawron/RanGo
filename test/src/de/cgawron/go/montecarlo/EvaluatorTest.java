@@ -41,7 +41,7 @@ public class EvaluatorTest
 		AnalysisNode best = root.getBestChild();
 		assertEquals("Testing number of iterations", evaluator.parameters.numSimulations, root.getVisits());
 		assertEquals("Testing expected move", parameters.getExpectedMove(), best.move);
-		assertEquals("Testing expected score", parameters.getExpectedScore(), best.getScore(), parameters.getTolerance());
+		assertEquals("Testing expected score", parameters.getExpectedScore(), best.getScore(), best.getVariance());
 	}
 
 }

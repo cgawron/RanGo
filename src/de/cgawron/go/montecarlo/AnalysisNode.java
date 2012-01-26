@@ -88,7 +88,6 @@ class AnalysisNode implements Comparable<AnalysisNode>
 	double calculateStaticSuitability() 
 	{
 		double suitability = 1;
-		BoardType color = goban.getStone(move);
 		
 		// Only play on empty fields
 		if (parent.goban.getStone(move) != BoardType.EMPTY) return 0;

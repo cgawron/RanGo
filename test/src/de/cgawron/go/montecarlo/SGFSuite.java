@@ -12,6 +12,7 @@ import java.lang.annotation.Target;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.logging.Logger;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.Unmarshaller;
@@ -35,6 +36,8 @@ import de.cgawron.go.montecarlo.Evaluator.EvaluatorParameters;
 import de.cgawron.go.sgf.GameTree;
 
 public class SGFSuite extends Suite {
+	private static Logger logger = Logger.getLogger(SGFSuite.class.getName());
+
 
 	/**
 	 * Annotation for a method which provides parameters to be injected into the
@@ -63,6 +66,9 @@ public class SGFSuite extends Suite {
 	    @XmlAttribute
 	    public String sgfFile;
 
+	    @XmlAttribute
+	    public String nodeName;
+	    
 	    private Goban goban;
 	    
 	    @XmlAttribute
@@ -131,6 +137,11 @@ public class SGFSuite extends Suite {
 
 		public double getTolerance() {
 			return tolerance;
+		}
+		
+		void afterUnmarshal(javax.xml.bind.Unmarshaller unmarshaller, Object parent)
+		{
+			logger.info("unmarshalling " + this);
 		}
 	}
 	
