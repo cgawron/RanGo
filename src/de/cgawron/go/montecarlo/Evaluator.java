@@ -89,7 +89,7 @@ public class Evaluator
 		public int numSimulations = 10000;
 		
 		@XmlAttribute
-		public int numThreads = 1;
+		public int numThreads = 4;
 		
 		@XmlAttribute
 		public int steepness = 1;

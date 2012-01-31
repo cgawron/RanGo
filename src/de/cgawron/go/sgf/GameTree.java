@@ -33,6 +33,7 @@ import java.io.Reader;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -45,6 +46,7 @@ import de.cgawron.go.Goban;
 import de.cgawron.go.SimpleGoban;
 import de.cgawron.go.Symmetry;
 import de.cgawron.go.sgf.TreeIterator.PreorderIterator;
+import de.cgawron.go.sgf.Value.Result;
 import de.cgawron.util.Memento;
 import de.cgawron.util.MementoOriginator;
 import de.cgawron.util.MiscEncodingReader;
@@ -52,8 +54,7 @@ import de.cgawron.util.MiscEncodingReader;
 /**
  * This class represents an SGF game tree.
  */
-public class GameTree implements TreeModel, PropertyChangeListener,
-		MementoOriginator
+public class GameTree implements Iterable<Node>, TreeModel, PropertyChangeListener, MementoOriginator
 {
 	private static Logger logger = Logger.getLogger(GameTree.class.getName());
 
@@ -62,6 +63,7 @@ public class GameTree implements TreeModel, PropertyChangeListener,
 	private File file = null;
 	private String name;
 	private RootNode root;
+	private Map<String, Node> nodeMap = null; 
 	// TODO: EventListenerList
 	private final Collection<TreeModelListener> listeners;
 
@@ -119,8 +121,15 @@ public class GameTree implements TreeModel, PropertyChangeListener,
 	{
 		logger.info("init: this=" + this + ", tree=" + tree);
 		this.root = tree.root;
+		this.nodeMap = tree.nodeMap;
 
 		root.setGameTree(this);
+		for (Node node : this)
+		{
+			if (node.containsKey(Property.NAME)) {
+				nodeMap.put(node.getName(), node);
+			}
+		}
 		// root.setDefaultRootProperties();
 		setModified(false);
 	}
@@ -134,6 +143,7 @@ public class GameTree implements TreeModel, PropertyChangeListener,
 			setRoot(new RootNode(root));
 
 		root.setGameTree(this);
+		nodeMap = new HashMap<String, Node>();
 		// root.setDefaultRootProperties();
 		setModified(false);
 	}
@@ -466,8 +476,16 @@ public class GameTree implements TreeModel, PropertyChangeListener,
 				+ event.getPropertyName());
 		noOfDiagrams = -1;
 		noOfFigures = -1;
-		if (event.getSource() instanceof Node)
+		if (event.getSource() instanceof Node) {
+			Node node = (Node) event.getSource();
+			Property p = node.get(Property.NAME);
+			if (p != null) {
+				String name = p.getValue().getString();
+				if (name != null && name.length() > 0) 
+					nodeMap.put(name, node);
+			}
 			fireTreeNodeChanged(event);
+		}
 		setModified(true);
 	}
 
@@ -1039,6 +1057,33 @@ public class GameTree implements TreeModel, PropertyChangeListener,
 			}
 		};
 		visitor.visit();
+	}
+
+	public Node getNodeByName(String nodeName)
+	{
+		return nodeMap.get(nodeName);
+	}
+
+	@Override
+	public Iterator<Node> iterator()
+	{
+		return new PreorderIterator<Node>(root);
+	}
+
+	public Collection<Node> getNamedNodes()
+	{
+		return nodeMap.values();
+	}
+
+	public Value.Result getResult()
+	{
+		Property resultP = root.get(Property.RESULT);
+		if (resultP != null) {
+			Value result = resultP.getValue();
+			if (result instanceof Value.Result)
+				return (Value.Result) result;
+		}
+		return null;
 	}
 
 	/*

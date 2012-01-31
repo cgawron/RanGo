@@ -292,8 +292,11 @@ public class Property implements Cloneable
 			Class propertyClass = null;
 			try {
 				argv[0] = key;
-				propertyClass = getDescriptor(key).getPropertyClass();
-				Constructor c = getDescriptor(key).getConstructor();
+				PropertyDescriptor descriptor = getDescriptor(key);
+				if (descriptor == null) 
+					return new Property(key);
+				propertyClass = descriptor.getPropertyClass();
+				Constructor c = descriptor.getConstructor();
 				if (c == null)
 					return new Property(key);
 				return (Property) c.newInstance(argv);

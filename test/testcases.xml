@@ -4,24 +4,33 @@
 	<!--  default parameters -->
 	<evaluatorParameters numSimulations="1000" />
 	
-	
-	<testcase sgfFile="ko1.sgf" movingColor="black" komi="10" expectedScore="15">
+	<sgfFile sgfFile="seki1.sgf">
+		<testcase movingColor="black" komi="0" expectedScore="0" name="check black to move">
+			<evaluatorParameters numSimulations="500" numThreads="4"/>
+		</testcase>
+
+		<testcase movingColor="white" komi="0" expectedScore="0" name="check white to move"/>
+	</sgfFile>	
+
+	<testcase sgfFileName="ko1.sgf" movingColor="black" komi="10" expectedScore="15">
 		<evaluatorParameters numSimulations="10000" />
 		<expected x="3" y="1" />
 	</testcase>
+	
+	<sgfFile sgfFile="pro9x9_1.sgf" />
+	
+	<sgfFile sgfFile="lifeAndDeath1.sgf">
+		<testcase name="check black to move" movingColor="black" komi="30" expectedScore="11">
+			<expected x="5" y="0" />
+		</testcase>
 
-	<testcase sgfFile="seki1.sgf" movingColor="black" komi="0" expectedScore="0">
-		<evaluatorParameters numSimulations="500" />
-	</testcase>
+		<testcase name="check white to move" movingColor="white" komi="30" expectedScore="19">
+			<expected x="5" y="0" />
+		</testcase>	
+	</sgfFile>
+	 
 
-	<testcase sgfFile="seki1.sgf" movingColor="white" komi="0" expectedScore="0" />
 
-	<testcase sgfFile="lifeAndDeath1.sgf" movingColor="black" komi="30" expectedScore="11">
-		<expected x="5" y="0" />
-	</testcase>
 
-	<testcase sgfFile="lifeAndDeath1.sgf" movingColor="white" komi="30" expectedScore="19">
-		<expected x="5" y="0" />
-	</testcase>
-
+ 	
 </testcases>

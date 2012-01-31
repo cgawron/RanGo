@@ -23,25 +23,25 @@ public class EvaluatorTest
 {
 	private static Logger logger = Logger.getLogger(EvaluatorTest.class.getName());
 	
-    SGFTestCase parameters;
+    SGFTestCase testCase;
       
     public EvaluatorTest(SGFTestCase parameters) throws Exception {
-    	this.parameters = parameters;
+    	this.testCase = parameters;
     	logger.info("Parameters: " + parameters);
     }
     
     @Test
 	public void testEvaluateUCT() throws Exception {
 		Evaluator evaluator = new Evaluator();
-		if (parameters.evaluatorParameters != null)
-			evaluator.setParameters(parameters.evaluatorParameters);
-		AnalysisNode root = new AnalysisNode(parameters.getGoban(), 
-											 parameters.getMovingColor(), parameters.getKomi());
+		if (testCase.evaluatorParameters != null)
+			evaluator.setParameters(testCase.evaluatorParameters);
+		AnalysisNode root = new AnalysisNode(testCase.getGoban(), 
+											 testCase.getMovingColor(), testCase.getKomi());
 		evaluator.evaluate(root);
 		AnalysisNode best = root.getBestChild();
 		assertEquals("Testing number of iterations", evaluator.parameters.numSimulations, root.getVisits());
-		assertEquals("Testing expected move", parameters.getExpectedMove(), best.move);
-		assertEquals("Testing expected score", parameters.getExpectedScore(), best.getScore(), best.getVariance());
+		assertEquals("Testing expected move", testCase.getExpectedMove(), best.move);
+		assertEquals("Testing expected score", testCase.getExpectedScore(), best.getScore(), best.getVariance());
 	}
 
 }
