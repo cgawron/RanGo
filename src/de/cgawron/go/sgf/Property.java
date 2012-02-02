@@ -18,43 +18,49 @@
 
 package de.cgawron.go.sgf;
 
-import de.cgawron.go.Goban;
-import de.cgawron.go.Goban.BoardType;
-import de.cgawron.go.Point;
-import de.cgawron.go.sgf.MarkupModel;
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
-import java.lang.annotation.Annotation;
+import java.io.PrintWriter;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
-import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import java.lang.annotation.Target;
-import java.io.PrintWriter;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
+import java.util.StringTokenizer;
+import java.util.TreeSet;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
+import de.cgawron.go.Goban.BoardType;
+import de.cgawron.go.Point;
 
 /**
  * This class represents an SGF property.
  * 
  * @see <a href="http://www.red-bean.com/sgf/">SGF Specification</a>
  */
-public class Property implements Cloneable
+public class Property<V extends Value> implements Cloneable
 {
+	@SuppressWarnings("rawtypes")
 	@Retention(value = RUNTIME)
 	@Target(value = ElementType.FIELD)
 	public @interface SGFProperty {
-		Class propertyClass() default GameInfo.class;
+		Class propertyClass() default  GameInfo.class;
 
 		String name() default "";
 
 		int priority() default 1000;
 	}
 
+	@SuppressWarnings("rawtypes")
 	static Class[] argt = new Class[1];
 
 	static {
@@ -68,15 +74,15 @@ public class Property implements Cloneable
 		}
 	}
 
-	public interface Joinable
+	public interface Joinable<P extends Property<? extends Value>>
 	{
-		public void join(Property p);
+		public void join(P p);
 	}
 
 	/**
 	 * Instances of this class identify SGF properties.
 	 */
-	public static class Key implements Comparable
+	public static class Key implements Comparable<Key>
 	{
 		String k;
 		String userFriendlyName;
@@ -129,7 +135,7 @@ public class Property implements Cloneable
 		/**
 		 * Compare this key to another key.
 		 * 
-		 * @param o
+		 * @param key
 		 *            the object to be compared
 		 * @return a negative integer, zero, or a positive integer as this key
 		 *         is less than, equal to, or greater than the specified object.
@@ -137,9 +143,8 @@ public class Property implements Cloneable
 		 *             if the specified object's type prevents it from being
 		 *             compared to this Object.
 		 */
-		public int compareTo(Object o) throws ClassCastException
+		public int compareTo(Key key) 
 		{
-			Key key = (Key) o;
 			int myPrio = getPriority();
 			int theirPrio = key.getPriority();
 
@@ -170,13 +175,14 @@ public class Property implements Cloneable
 		}
 	}
 
-	static class PropertyDescriptor
+	static class PropertyDescriptor<P extends Property<? extends Value>>
 	{
-		Class myClass;
-		Constructor myConstructor;
+		Class<P> myClass;
+		Constructor<P> myConstructor;
 		int priority = 0;
 		String userFriendlyName;
 
+		@SuppressWarnings("unchecked")
 		PropertyDescriptor(SGFProperty annotation)
 		{
 			myClass = annotation.propertyClass();
@@ -189,6 +195,7 @@ public class Property implements Cloneable
 			userFriendlyName = annotation.name();
 		}
 
+		@SuppressWarnings("unchecked")
 		PropertyDescriptor(String s)
 		{
 			StringTokenizer tokens = new StringTokenizer(s, ",");
@@ -196,7 +203,7 @@ public class Property implements Cloneable
 
 			name = tokens.nextToken();
 			try {
-				myClass = Class.forName(name);
+				myClass = (Class<P>) Class.forName(name);
 				if (myClass != null)
 					myConstructor = myClass.getConstructor(argt);
 			} catch (Throwable e) {
@@ -219,12 +226,12 @@ public class Property implements Cloneable
 			return userFriendlyName;
 		}
 
-		Class getPropertyClass()
+		Class<P> getPropertyClass()
 		{
 			return myClass;
 		}
 
-		Constructor getConstructor()
+		Constructor<P> getConstructor()
 		{
 			return myConstructor;
 		}
@@ -232,17 +239,18 @@ public class Property implements Cloneable
 
 	private static class Factory
 	{
-		private static HashMap<String, PropertyDescriptor> propertyMap = null;
-		Map<Key, Constructor> constructorMap = new HashMap<Key, Constructor>();
-
+		private static HashMap<String, PropertyDescriptor<? extends Property<? extends Value>>> propertyMap = null;
+		
+		@SuppressWarnings({
+				"unchecked", "rawtypes"
+		})
 		Factory()
 		{
 			if (propertyMap == null)
-				propertyMap = new HashMap<String, PropertyDescriptor>();
+				propertyMap = new HashMap<String, PropertyDescriptor<? extends Property<? extends Value>>>();
 
 			logger.fine("Factory()");
-			Properties properties = new Properties();
-
+			
 			Field[] fields = Property.class.getFields();
 			for (Field field : fields) {
 				try {
@@ -253,8 +261,7 @@ public class Property implements Cloneable
 					if (annotation != null) {
 						Key key = (Key) field.get(null);
 						logger.fine("key: " + key);
-						propertyMap.put(key.toString(), new PropertyDescriptor(
-								annotation));
+						propertyMap.put(key.toString(), new PropertyDescriptor(annotation));
 					}
 				} catch (IllegalAccessException ex) {
 					throw new RuntimeException(ex);
@@ -520,7 +527,7 @@ public class Property implements Cloneable
 	/**
 	 * A common class for AddWhite, AddBlack and AddEmpty.
 	 */
-	public static class AddStones extends Property implements Joinable
+	public static class AddStones extends Property<Value.PointList> implements Joinable<AddStones>
 	{
 		/** See {@link Property#Property(Property.Key)}. */
 		public AddStones(Key key)
@@ -528,7 +535,7 @@ public class Property implements Cloneable
 			super(key);
 		}
 
-		public void join(Property p)
+		public void join(AddStones p)
 		{
 			Value value = getValue();
 			if (value instanceof Value.ValueList) {
@@ -567,8 +574,7 @@ public class Property implements Cloneable
 		}
 	}
 
-	public static class Markup extends Property implements MarkupModel.Markup,
-			Joinable
+	public static class Markup extends Property<Value> implements MarkupModel.Markup, Joinable<Markup>
 	{
 		protected MarkupModel.Type type;
 
@@ -599,7 +605,7 @@ public class Property implements Cloneable
 			return toString().compareTo(m.toString());
 		}
 
-		public void join(Property p)
+		public void join(Markup p)
 		{
 			Value value = getValue();
 			if (value instanceof Value.ValueList) {
@@ -616,6 +622,7 @@ public class Property implements Cloneable
 		{
 			return type;
 		}
+
 	}
 
 	public static class Label extends Markup
@@ -627,7 +634,8 @@ public class Property implements Cloneable
 			this.type = MarkupModel.Type.LABEL;
 		}
 
-		public void setValue(Value vl)
+		@Override
+		public void setValue(Value.ValueList vl)
 		{
 			super.setValue(vl);
 		}
@@ -649,7 +657,7 @@ public class Property implements Cloneable
 	 * 
 	 * @see <a href="http://www.red-bean.com/sgf/">SGF Specification</a>
 	 */
-	public static class GameInfo extends Property implements Inheritable
+	public static class GameInfo<V extends Value> extends Property<V> implements Inheritable
 	{
 		/** See {@link Property#Property(Property.Key)}. */
 		public GameInfo(Key key)
@@ -660,12 +668,12 @@ public class Property implements Cloneable
 		public GameInfo(Key key, String s)
 		{
 			super(key);
-			setValue(AbstractValue.createValue(s));
+			setValue((V) AbstractValue.createValue(s));
 		}
 
 		public void setValue(String value)
 		{
-			setValue(AbstractValue.createValue(value));
+			setValue((V) AbstractValue.createValue(value));
 		}
 	}
 
@@ -691,11 +699,27 @@ public class Property implements Cloneable
 	}
 
 	/**
+	 * A base class for game info properties.
+	 * 
+	 * @see <a href="http://www.red-bean.com/sgf/">SGF Specification</a>
+	 */
+	public static class Komi extends GameInfo<Value.Number> implements Inheritable 
+	{
+	
+		/** See {@link Property#Property(Property.Key)}. */
+		public Komi(Key key)
+		{
+			super(key);
+		}
+
+	}
+
+	/**
 	 * A base class for root properties.
 	 * 
 	 * @see <a href="http://www.red-bean.com/sgf/">SGF Specification</a>
 	 */
-	public static class Root extends Property implements Inheritable
+	public static class Root<V extends Value> extends Property<V> implements Inheritable
 	{
 		/** See {@link Property#Property(Property.Key)}. */
 		public Root(Key key)
@@ -704,7 +728,7 @@ public class Property implements Cloneable
 		}
 	}
 
-	public static class Charset extends Root
+	public static class Charset extends Root<Value.Text>
 	{
 		/** See {@link Property#Property(Property.Key)}. */
 		public Charset(Key key)
@@ -712,10 +736,15 @@ public class Property implements Cloneable
 			super(key);
 		}
 
-		public void setValue(Value vl)
+		public void setValue(Value.Text vl)
 		{
 			logger.info("Setting Charset to " + vl.toString());
 			//gameTree.setCharset(vl.toString());
+			super.setValue(vl);
+		}
+		
+		public void setValue(Value.ValueList vl)
+		{
 			super.setValue(vl);
 		}
 	}
@@ -776,7 +805,7 @@ public class Property implements Cloneable
 		}
 	}
 
-	public static class RootNumber extends Root implements Number
+	public static class RootNumber extends Root<Value.Number> implements Number
 	{
 		/** See {@link Property#Property(Property.Key)}. */
 		public RootNumber(Key key)
@@ -784,18 +813,6 @@ public class Property implements Cloneable
 			super(key);
 		}
 
-		public void setValue(Value v)
-		{
-			if (v instanceof Value.ValueList) {
-				Value.ValueList vl = (Value.ValueList) v;
-				if (vl.size() == 1) {
-					setValue((Value.Number) vl.get(0));
-				} else
-					throw new IllegalArgumentException(
-							"Cannot set value to a ValueList with length != 1");
-			} else
-				super.setValue((Value.Number) v);
-		}
 	}
 
 	/** The SGF Property AddBlack. */
@@ -895,7 +912,7 @@ public class Property implements Cloneable
 	public final static Key RESULT = new Key("RE");
 
 	/** The SGF Property KoMi. */
-	@SGFProperty(propertyClass = GameInfo.class, priority=78)
+	@SGFProperty(propertyClass = Komi.class, priority=78)
 	public final static Key KOMI = new Key("KM");
 
 	/** The SGF Property HAndicap. */
@@ -949,7 +966,7 @@ public class Property implements Cloneable
 
 	static Set InheritableProperties = new TreeSet();
 
-	private Value value = null;
+	private V value = null;
 	private Key key = null;
 
 	/**
@@ -972,11 +989,19 @@ public class Property implements Cloneable
 	 * @param value
 	 *            the value to set
 	 */
-	public void setValue(Value value)
+	public void setValue(V value)
 	{
 		this.value = value;
 	}
 
+	public void setValue(Value.ValueList vl)
+	{
+		if (vl.size() == 1) {
+			setValue((V) vl.get(0));
+		} else
+			throw new IllegalArgumentException("Cannot set value to a ValueList with length != 1");
+	}
+	
 	/**
 	 * Set the {@link Value} of the property to String <code>newValue</code>.
 	 * This operation is optional, i.e. not all sub-classes might support it.
@@ -997,7 +1022,7 @@ public class Property implements Cloneable
 	 * 
 	 * @return the Value of this property.
 	 */
-	public Value getValue()
+	public V getValue()
 	{
 		if (value == null) {
 			logger.warning("Property " + key + ": no value");
@@ -1040,11 +1065,13 @@ public class Property implements Cloneable
 			out.print("[]");
 	}
 
-	public Property clone()
+	@SuppressWarnings("unchecked")
+	@Override
+	public Property<V> clone()
 	{
-		Property p = createProperty(key);
+		Property<V> p = (Property<V>) createProperty(key);
 		if (value != null)
-			p.setValue(value.clone());
+			p.setValue((V) value.clone());
 		return p;
 	}
 

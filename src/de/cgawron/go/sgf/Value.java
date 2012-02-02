@@ -72,6 +72,7 @@ public interface Value extends Cloneable
 	public interface Number extends Value
 	{
 		int intValue();
+		double doubleValue();
 	}
 
 	public interface ValueList extends Value, java.util.List<Value>

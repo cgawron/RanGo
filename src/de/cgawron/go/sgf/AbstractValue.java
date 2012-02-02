@@ -753,9 +753,9 @@ public abstract class AbstractValue implements Value
 		}
 	}
 
-	private static class Number extends AbstractValue implements Value.Number
+	protected static class Number extends AbstractValue implements Value.Number
 	{
-		Integer number;
+		java.lang.Number number;
 
 		public Number(String text)
 		{
@@ -771,7 +771,13 @@ public abstract class AbstractValue implements Value
 		{
 			return number.intValue();
 		}
-
+		
+		@Override
+		public double doubleValue()
+		{
+			return number.doubleValue();
+		}
+		
 		public String toString()
 		{
 			return number.toString();
@@ -791,6 +797,7 @@ public abstract class AbstractValue implements Value
 			out.print(number);
 			out.print("]");
 		}
+
 	}
 
 	private static class ValueList extends AbstractValue implements

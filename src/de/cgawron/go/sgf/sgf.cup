@@ -1,6 +1,6 @@
 /**
  *
- * (C) 2010 Christian Gawron. All rights reserved.
+ * (C) 2010-2012 Christian Gawron. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import java_cup.runtime.*;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 
 /* Preliminaries to set up and use the scanner.  */
 
@@ -138,13 +139,27 @@ Node ::= Semi PropertyList:pl
 
 
 
-PropertyList ::= PropertyList:pl Property:p  ValueList:vl 
-	         {: ((Property) p).setValue((Value) vl); 
-                    ((PropertyList) pl).add((Property) p);
+PropertyList ::= PropertyList:pl Property:p  ValueList:_vl 
+	         {: 
+	            Value.ValueList vl = (Value.ValueList) _vl;
+	            if (vl.size() == 1) {
+	               ((Property) p).setValue((Value) (vl.get(0)));
+	            }
+	            else {
+	               ((Property) p).setValue((Value) vl);
+	            } 
+	            ((PropertyList) pl).add((Property) p);
 	            RESULT = pl; :}
-	       | Property:p  ValueList:vl
-	         {: ((Property) p).setValue((Value) vl); 
-                    RESULT = new PropertyList((Property) p); :}
+	       | Property:p  ValueList:_vl
+	         {: 
+	            Value.ValueList vl = (Value.ValueList) _vl;
+	            if (vl.size() == 1) {
+	               ((Property) p).setValue((Value) (vl.get(0)));
+	            }
+	            else {
+	               ((Property) p).setValue((Value) vl);
+	            } 
+                RESULT = new PropertyList((Property) p); :}
 ;
 
 ValueList    ::= ValueList:vl Value:v 
