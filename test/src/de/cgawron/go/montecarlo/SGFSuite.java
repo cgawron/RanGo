@@ -210,7 +210,7 @@ public class SGFSuite extends Suite {
 	    public String nodeName;
 	    
 	    @XmlAttribute
-	    public double komi;
+	    public Double komi;
 		
 	    @XmlElement(name="expected")
 	    public Point expectedMove;
@@ -270,6 +270,11 @@ public class SGFSuite extends Suite {
 		}
 
 		public double getKomi() {
+			if (komi == null) {
+				komi = sgfFile.getGameTree().getKomi();
+			}
+			if (komi == null)
+				komi = 5.5;
 			return komi;
 		}
 

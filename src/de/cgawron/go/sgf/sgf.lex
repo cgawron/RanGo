@@ -48,6 +48,7 @@ import de.cgawron.util.MiscEncodingReader;
 %state POINTS
 %state LABEL
 %state NUMBER
+%state REAL
 %state TEXT
 %state PROPERTY
 %state PROPERTY_NEXT
@@ -191,6 +192,13 @@ import de.cgawron.util.MiscEncodingReader;
     return new Token(Symbols.Value, yytext(), yyline, yychar, AbstractValue.createValue(number));
 }
 
+<REAL> [\+\-]*[0-9\.]+"]" 
+{
+    yybegin(TOP);
+    Double number = new Double(yytext().substring(0, yytext().length()-1));
+    return new Token(Symbols.Value, yytext(), yyline, yychar, AbstractValue.createValue(number));
+}
+
 <TEXT> \\((\r(\n)?)|(\n(\r)?)) { 
 }
 
@@ -255,6 +263,10 @@ import de.cgawron.util.MiscEncodingReader;
     else if (property instanceof Property.Charset)
     {
         yybegin(TEXT);
+    }
+    else if (property instanceof Property.Real)
+    {
+        yybegin(REAL);
     }
     else if (property instanceof Property.Number)
     {

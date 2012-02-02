@@ -2,31 +2,40 @@
 
 <project name="MonteCarlo" default="test" basedir=".">
 
-  <property name="src" value="src" />
-  <property name="resources" value="resources" />
-  <property name="test" value="test/src" />
-  <property name="tools" value="tools" />
-  <property name="build" value="build" />
-  <property name="dist"  value="dist" />
-  <property name="lib"  value="lib" />
+	<property name="src" value="src" />
+	<property name="resources" value="resources" />
+	<property name="test" value="test/src" />
+	<property name="tools" value="tools" />
+	<property name="build" value="build" />
+	<property name="dist"  value="dist" />
+	<property name="lib"  value="lib" />
 
-<!--
+	<!--
   <taskdef name="svgrasterizer" classname="org.apache.tools.ant.taskdefs.optional.RasterizerTask" classpathref="toolclasspath"/>
-  <taskdef name="jflex" classname="JFlex.anttask.JFlexTask" classpathref="toolclasspath"/>
-  <taskdef name="cup" classname="de.cgawron.ant.CUPTask" classpathref="toolclasspath"/>
   <taskdef name="svn" classname="org.tigris.subversion.svnant.SvnTask" classpathref="toolclasspath"/>
 -->
+	<path id="toolclasspath">
+		<fileset dir="${tools}">
+			<patternset>
+				<include name="*.jar" />
+			</patternset>
+		</fileset>
+	</path>
 
-  <path id="classpath">
-    <fileset dir="${lib}">
-      <patternset>
-		<include name="*.jar"/>
-      </patternset>
-    </fileset>
-  </path>
+	<taskdef name="jflex" classname="JFlex.anttask.JFlexTask" classpathref="toolclasspath" />
+	<taskdef name="cup" classname="de.cgawron.ant.CUPTask" classpathref="toolclasspath"/>
 
-  <target name="javadoc">
-    <javadoc 
+
+	<path id="classpath">
+		<fileset dir="${lib}">
+			<patternset>
+				<include name="*.jar"/>
+			</patternset>
+		</fileset>
+	</path>
+
+	<target name="javadoc">
+		<javadoc 
 	     destdir="${documentation}" 
 	     source="1.5" 
 	     sourcepath="${src}" 
@@ -36,11 +45,11 @@
 	     Use="true"
 	     additionalparam='-breakiterator -tag todo:a:"To Do:"'
 	     packagenames="de.cgawron.go,de.cgawron.go.godiagram,de.cgawron.go.sgf,de.cgawron.go.goban,de.cgawron.go.database">
-    </javadoc>
-  </target>
+		</javadoc>
+	</target>
 
-  <target name="doccheck">
-    <javadoc 
+	<target name="doccheck">
+		<javadoc 
 	     destdir="build/doccheck" 
 	     source="1.5" 
 	     sourcepath="${src}" 
@@ -50,18 +59,18 @@
 	     docletpath="tools/doccheck.jar"
 	     additionalparam="-breakiterator"
 	     packagenames="de.cgawron.go,de.cgawron.go.godiagram,de.cgawron.go.sgf,de.cgawron.go.goban,de.cgawron.go.database">
-    </javadoc>
-  </target>
+		</javadoc>
+	</target>
 
-  <target name="compile" depends="">
-    <mkdir dir="${build}/classes"/>
+	<target name="compile" depends="cup">
+		<mkdir dir="${build}/classes"/>
 
-    <depend srcdir="${src}"
+		<depend srcdir="${src}"
         destdir="${build}/classes"
         cache="depcache"
         closure="yes"/>
 
-    <javac destdir="${build}/classes"
+		<javac destdir="${build}/classes"
 		   includes="de/**"
            debug="on"
            source="1.6"
@@ -71,16 +80,16 @@
            deprecation="off"
            encoding="ISO8859-1"
            optimize="on" >
-      <src path="${src}"/>
-      <classpath>
-        <path refid="classpath"/>
-      </classpath>
-      <compilerarg value="-Xlint:unchecked" />
-    </javac>
-  </target>
-  
-  <target name="compile-test">
-    <javac srcdir="${test}"
+			<src path="${src}"/>
+			<classpath>
+				<path refid="classpath"/>
+			</classpath>
+			<compilerarg value="-Xlint:unchecked" />
+		</javac>
+	</target>
+
+	<target name="compile-test">
+		<javac srcdir="${test}"
            destdir="${test}"
            source="1.6"
            target="1.6"
@@ -89,31 +98,31 @@
            debug="on"
            deprecation="on"
            optimize="on" >
-      <classpath refid="classpath" />
-    </javac>
-  </target>
-  
-  <target name="jar" depends="compile" description="Create JAR file">
-  	<jar destfile="${dist}/montecarlo.jar" basedir="${build}/classes">
-  		
-  	</jar>
-  </target>
+			<classpath refid="classpath" />
+		</javac>
+	</target>
+
+	<target name="jar" depends="compile" description="Create JAR file">
+		<jar destfile="${dist}/montecarlo.jar" basedir="${build}/classes">
+
+		</jar>
+	</target>
 
 
-  <target name="junit" depends="compile,compile-test">
-    <junit haltonfailure="off" printsummary="on" showoutput="on" filtertrace="on" fork="on" dir=".">
-      <jvmarg value="-agentlib:hprof=cpu=samples,interval=20,depth=6"/>
-      <jvmarg value="-Xmx800m"/>
-      <classpath>
-		<pathelement path="${build}/classes" />
-		<pathelement path="${lib}/cup.jar" />
-		<pathelement path="${lib}/junit-4.10.jar" />
-		<pathelement path="${test}" />
-      </classpath>
-      <formatter type="xml" />
-	  
-      <test name="de.cgawron.go.montecarlo.EvaluatorTest" />
-<!--
+	<target name="junit" depends="compile,compile-test">
+		<junit haltonfailure="off" printsummary="on" showoutput="on" filtertrace="on" fork="on" dir=".">
+			<jvmarg value="-agentlib:hprof=cpu=samples,interval=20,depth=6"/>
+			<jvmarg value="-Xmx800m"/>
+			<classpath>
+				<pathelement path="${build}/classes" />
+				<pathelement path="${lib}/cup.jar" />
+				<pathelement path="${lib}/junit-4.10.jar" />
+				<pathelement path="${test}" />
+			</classpath>
+			<formatter type="xml" />
+
+			<test name="de.cgawron.go.montecarlo.EvaluatorTest" />
+			<!--
       <test name="de.cgawron.go.sgf.GameTree" />
       <test name="de.cgawron.go.sgf.SgfSuite" />
       <test name="de.cgawron.go.sgf.DiagramTreeModelTest" />
@@ -122,19 +131,27 @@
       <test name="de.cgawron.go.goban.GobanSuite" />
       <test name="de.cgawron.go.godiagram.GodiagramSuite" />
 -->
-    </junit>
-  </target>
+		</junit>
+	</target>
 
-  <target name="junitreport">
-    <mkdir dir="${dist}/junit"/>
-    <junitreport todir="${dist}/junit">
-      <fileset dir=".">
-		<include name="TEST-*.xml"/>
-      </fileset>
-      <report format="frames" todir="dist/junit"/>
-    </junitreport>
-  </target>
-  
-  <target name="test" depends="junit,junitreport" />
- 
+	<target name="cup">
+		<cup inputfile="src/de/cgawron/go/sgf/sgf.cup" parser="Parser" package="de.cgawron.go.sgf">
+			<option name="-symbols" value="Symbols" />
+			<option name="-interface" />
+		</cup>
+	</target>
+
+
+	<target name="junitreport">
+		<mkdir dir="${dist}/junit"/>
+		<junitreport todir="${dist}/junit">
+			<fileset dir=".">
+				<include name="TEST-*.xml"/>
+			</fileset>
+			<report format="frames" todir="dist/junit"/>
+		</junitreport>
+	</target>
+
+	<target name="test" depends="junit,junitreport" />
+
 </project>

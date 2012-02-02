@@ -74,6 +74,11 @@ public interface Value extends Cloneable
 		int intValue();
 	}
 
+	public interface Real extends Value
+	{
+		double doubleValue();
+	}
+
 	public interface ValueList extends Value, java.util.List<Value>
 	{
 	}

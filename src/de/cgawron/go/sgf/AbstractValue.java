@@ -61,6 +61,8 @@ public abstract class AbstractValue implements Value
 				return new AbstractValue.Text((String) o);
 			else if (o instanceof Integer)
 				return new AbstractValue.Number((Integer) o);
+			else if (o instanceof Double)
+				return new AbstractValue.Real((Double) o);
 			else if (o == null)
 				return new AbstractValue.Void();
 			else
@@ -753,9 +755,9 @@ public abstract class AbstractValue implements Value
 		}
 	}
 
-	private static class Number extends AbstractValue implements Value.Number
+	protected static class Number extends AbstractValue implements Value.Number
 	{
-		Integer number;
+		java.lang.Number number;
 
 		public Number(String text)
 		{
@@ -771,7 +773,7 @@ public abstract class AbstractValue implements Value
 		{
 			return number.intValue();
 		}
-
+		
 		public String toString()
 		{
 			return number.toString();
@@ -791,8 +793,52 @@ public abstract class AbstractValue implements Value
 			out.print(number);
 			out.print("]");
 		}
+
 	}
 
+	
+	protected static class Real extends AbstractValue implements Value.Real
+	{
+		java.lang.Number number;
+
+		public Real(String text)
+		{
+			this.number = Double.parseDouble(text);
+		}
+
+		public Real(Double number)
+		{
+			this.number = number;
+		}
+
+		public double doubleValue()
+		{
+			return number.doubleValue();
+		}
+		
+		public String toString()
+		{
+			return number.toString();
+		}
+
+		public boolean equals(Object o)
+		{
+			if (o instanceof Value.Real) {
+				return doubleValue() == ((Value.Real) o).doubleValue();
+			} else
+				return false;
+		}
+
+		public void write(PrintWriter out)
+		{
+			out.print("[");
+			out.print(number);
+			out.print("]");
+		}
+
+	}
+
+	
 	private static class ValueList extends AbstractValue implements
 			Value.ValueList
 	{

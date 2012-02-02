@@ -45,6 +45,7 @@ import java.util.logging.Logger;
 import de.cgawron.go.Goban;
 import de.cgawron.go.SimpleGoban;
 import de.cgawron.go.Symmetry;
+import de.cgawron.go.sgf.Property.Komi;
 import de.cgawron.go.sgf.TreeIterator.PreorderIterator;
 import de.cgawron.go.sgf.Value.Result;
 import de.cgawron.util.Memento;
@@ -1083,6 +1084,17 @@ public class GameTree implements Iterable<Node>, TreeModel, PropertyChangeListen
 			if (result instanceof Value.Result)
 				return (Value.Result) result;
 		}
+		return null;
+	}
+
+	public Double getKomi()
+	{
+		Komi komiP = (Komi) root.get(Property.KOMI);
+		if (komiP != null) {
+			Value.Real komi = komiP.getValue();
+			return komi.doubleValue();
+		}
+
 		return null;
 	}
 
