@@ -21,6 +21,28 @@ import de.cgawron.go.montecarlo.AnalysisGoban.Group;
  */
 class AnalysisNode implements Comparable<AnalysisNode>
 {
+	@SuppressWarnings("serial")
+	public class AnalysisException extends RuntimeException
+	{
+		AnalysisGoban goban;
+		Point point;
+		
+		public AnalysisException(AnalysisGoban goban, Point point, Exception exception)
+		{
+			super(exception);
+			this.goban = goban;
+			this.point = point;
+		}
+
+		@Override
+		public String toString()
+		{
+			return "AnalysisException [goban=" + goban.deepToString() + ", point=" + point
+					+ ", super=" + super.toString() + "]";
+		}
+
+	}
+
 	static Logger logger = Logger.getLogger(AnalysisNode.class.getName());	
 	
 	private int visits = 0;
@@ -164,15 +186,22 @@ class AnalysisNode implements Comparable<AnalysisNode>
 
 	public AnalysisNode createChild(Point p) 
 	{
-		AnalysisNode child = createChild();
-		//child.goban.checkGoban();
-		child.move = p;
-		child.goban.move(p, movingColor);
-		//logger.info("createChild: " + p + "\n[" + goban + "]\n[" + child.goban + "]");
-		updateMiai();
-		child.suitability = child.calculateStaticSuitability();
-
-		return child;
+		synchronized (this) {
+			AnalysisNode child = createChild();
+			// child.goban.checkGoban();
+			child.move = p;
+			try {
+				child.goban.move(p, movingColor);
+				// logger.info("createChild: " + p + "\n[" + goban + "]\n[" +
+				// child.goban + "]");
+				updateMiai();
+				child.suitability = child.calculateStaticSuitability();
+			}
+			catch (Exception ex) {
+				throw new AnalysisException(child.goban, p, ex);
+			}
+			return child;
+		}
 	}
 	
 	public AnalysisNode createPassNode() 

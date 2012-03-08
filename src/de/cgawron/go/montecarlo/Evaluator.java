@@ -27,9 +27,12 @@ import java.util.Queue;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.WeakHashMap;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -105,7 +108,7 @@ public class Evaluator
 		}
 	}
 
-	public class RandomSimulator implements Runnable
+	public class RandomSimulator implements Callable<Double>
 	{
 		private final AnalysisNode node;
 		private final double[][] territory;
@@ -117,15 +120,17 @@ public class Evaluator
 		}
 
 		@Override
-		public void run()
+		public Double call() throws Exception
 		{
 			try {
 				evaluateSequenceByUCT(node, territory);
+				return node.getValue();
 			}
 			catch (Throwable t) {
 				logger.log(Level.SEVERE, "Exception caught", t);
-				throw new RuntimeException(t);
+				throw new ExecutionException(t);
 			}
+
 		}
 	}
 
@@ -242,17 +247,18 @@ public class Evaluator
 		else
 			territory = null;
 
-		Queue<Future<?>> workQueue = new LinkedList<Future<?>>();
+		Queue<Future<Double>> workQueue = new LinkedList<Future<Double>>();
 
 		for (simulation = 0; simulation < parameters.numSimulations; simulation++) {
-			Runnable simulation = new RandomSimulator(root, territory);
+			Callable<Double> simulation = new RandomSimulator(root, territory);
 			workQueue.add(getExecutor().submit(simulation));
+			
 			// evaluateSequenceByUCT(root, territory);
 			// logger.info("simulation " + simulation + ": value=" + root.value
 			// + ", tree size: " + workingTree.size());
 		}
 
-		Future<?> future;
+		Future<Double> future;
 		while (workQueue.size() > 0) {
 			try {
 				future = workQueue.peek();
@@ -263,6 +269,7 @@ public class Evaluator
 					Thread.sleep(500);
 					continue;
 				} else {
+					logger.info("value of " + future + ": " + future.get());
 					workQueue.remove(future);
 				}
 			} catch (Exception ex) {
