@@ -1089,9 +1089,9 @@ public class GameTree implements Iterable<Node>, TreeModel, PropertyChangeListen
 
 	public Double getKomi()
 	{
-		Komi komiP = (Komi) root.get(Property.KOMI);
+		Property komiP = root.get(Property.KOMI);
 		if (komiP != null) {
-			Value.Real komi = komiP.getValue();
+			Value.Number komi = (Value.Number) komiP.getValue();
 			return komi.doubleValue();
 		}
 

@@ -24,7 +24,26 @@
 
 	<taskdef name="jflex" classname="JFlex.anttask.JFlexTask" classpathref="toolclasspath" />
 	<taskdef name="cup" classname="de.cgawron.ant.CUPTask" classpathref="toolclasspath"/>
+	<path id="toolclasspath">
+		<fileset dir="${tools}">
+			<patternset>
+				<include name="*.jar" />
+			</patternset>
+		</fileset>
+	</path>
 
+
+	<taskdef name="jflex" classname="JFlex.anttask.JFlexTask" classpathref="toolclasspath" />
+	<taskdef name="cup" classname="de.cgawron.ant.CUPTask" classpathref="toolclasspath"/>
+
+
+	<path id="classpath">
+		<fileset dir="${lib}">
+			<patternset>
+				<include name="*.jar"/>
+			</patternset>
+		</fileset>
+	</path>
 
 	<path id="classpath">
 		<fileset dir="${lib}">

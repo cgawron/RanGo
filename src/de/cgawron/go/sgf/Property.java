@@ -30,8 +30,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.TreeSet;
@@ -53,7 +51,7 @@ public class Property<V extends Value> implements Cloneable
 	@Retention(value = RUNTIME)
 	@Target(value = ElementType.FIELD)
 	public @interface SGFProperty {
-		Class propertyClass() default  GameInfo.class;
+		Class propertyClass() default GameInfo.class;
 
 		String name() default "";
 
@@ -70,7 +68,7 @@ public class Property<V extends Value> implements Cloneable
 			// logger.severe("Class Key missing, installation is corrupt: " +
 			// ex.getMessage());
 			throw new RuntimeException(
-					"Class Key missing, installation is corrupt", ex);
+			                "Class Key missing, installation is corrupt", ex);
 		}
 	}
 
@@ -127,7 +125,7 @@ public class Property<V extends Value> implements Cloneable
 		{
 			if (priority < 0) {
 				priority = getDescriptor(this) != null ? getDescriptor(this)
-						.getPriority() : 0;
+				                .getPriority() : 0;
 			}
 			return priority;
 		}
@@ -143,7 +141,7 @@ public class Property<V extends Value> implements Cloneable
 		 *             if the specified object's type prevents it from being
 		 *             compared to this Object.
 		 */
-		public int compareTo(Key key) 
+		public int compareTo(Key key)
 		{
 			int myPrio = getPriority();
 			int theirPrio = key.getPriority();
@@ -240,9 +238,10 @@ public class Property<V extends Value> implements Cloneable
 	private static class Factory
 	{
 		private static HashMap<String, PropertyDescriptor<? extends Property<? extends Value>>> propertyMap = null;
-		
-		@SuppressWarnings({
-				"unchecked", "rawtypes"
+
+		@SuppressWarnings(
+		{
+		        "unchecked", "rawtypes"
 		})
 		Factory()
 		{
@@ -250,14 +249,14 @@ public class Property<V extends Value> implements Cloneable
 				propertyMap = new HashMap<String, PropertyDescriptor<? extends Property<? extends Value>>>();
 
 			logger.fine("Factory()");
-			
+
 			Field[] fields = Property.class.getFields();
 			for (Field field : fields) {
 				try {
 					logger.fine("field: " + field.getName() + " "
-							+ field.get(null));
+					                + field.get(null));
 					SGFProperty annotation = field
-							.getAnnotation(SGFProperty.class);
+					                .getAnnotation(SGFProperty.class);
 					if (annotation != null) {
 						Key key = (Key) field.get(null);
 						logger.fine("key: " + key);
@@ -277,9 +276,9 @@ public class Property<V extends Value> implements Cloneable
 				argt[0] = Class.forName("de.cgawron.go.sgf.Property$Key");
 			} catch (ClassNotFoundException ex) {
 				logger.severe("Class Key missing, installation is corrupt: "
-						+ ex.getMessage());
+				                + ex.getMessage());
 				throw new RuntimeException(
-						"Class Key missing, installation is corrupt", ex);
+				                "Class Key missing, installation is corrupt", ex);
 			}
 		}
 
@@ -300,7 +299,7 @@ public class Property<V extends Value> implements Cloneable
 			try {
 				argv[0] = key;
 				PropertyDescriptor descriptor = getDescriptor(key);
-				if (descriptor == null) 
+				if (descriptor == null)
 					return new Property(key);
 				propertyClass = descriptor.getPropertyClass();
 				Constructor c = descriptor.getConstructor();
@@ -310,11 +309,11 @@ public class Property<V extends Value> implements Cloneable
 			} catch (Exception e) {
 				if (propertyClass != null) {
 					logger.warning("Couldn't create a "
-							+ propertyClass.getName() + " for " + key + ": "
-							+ e);
+					                + propertyClass.getName() + " for " + key + ": "
+					                + e);
 					if (e instanceof InvocationTargetException) {
 						logger.warning("Cause was: "
-								+ ((InvocationTargetException) e).getCause());
+						                + ((InvocationTargetException) e).getCause());
 					}
 				} else
 					logger.warning("No class known for " + key);
@@ -331,9 +330,9 @@ public class Property<V extends Value> implements Cloneable
 				argt2[1] = Class.forName("java.lang.String");
 			} catch (ClassNotFoundException ex) {
 				logger.severe("Class missing, installation is corrupt: "
-						+ ex.getMessage());
+				                + ex.getMessage());
 				throw new RuntimeException(
-						"Class missing, installation is corrupt", ex);
+				                "Class missing, installation is corrupt", ex);
 			}
 		}
 
@@ -346,17 +345,17 @@ public class Property<V extends Value> implements Cloneable
 				argv2[1] = s.substring(1, s.length() - 1);
 				propertyClass = getDescriptor(key).getPropertyClass();
 				logger.fine("Creating property for key " + argv[0] + " "
-						+ argt[0] + " " + propertyClass);
+				                + argt[0] + " " + propertyClass);
 				Constructor c = propertyClass.getConstructor(argt2);
 				return (Property) c.newInstance(argv2);
 			} catch (Exception e) {
 				if (propertyClass != null) {
 					logger.warning("Couldn't create a "
-							+ propertyClass.getName() + " for " + key + ": "
-							+ e);
+					                + propertyClass.getName() + " for " + key + ": "
+					                + e);
 					if (e instanceof InvocationTargetException) {
 						logger.warning("Cause was: "
-								+ ((InvocationTargetException) e).getCause());
+						                + ((InvocationTargetException) e).getCause());
 					}
 				} else
 					logger.warning("No class known for " + key);
@@ -491,7 +490,7 @@ public class Property<V extends Value> implements Cloneable
 					setValue((Value) vl.get(0));
 				} else
 					logger.warning("Move can't have a ValueList of size "
-							+ vl.size());
+					                + vl.size());
 			} else
 				logger.warning("Class is " + v.getClass().getName());
 		}
@@ -675,7 +674,7 @@ public class Property<V extends Value> implements Cloneable
 		{
 			setValue((V) AbstractValue.createValue(value));
 		}
-		
+
 	}
 
 	/**
@@ -706,13 +705,13 @@ public class Property<V extends Value> implements Cloneable
 	 */
 	public static class Komi extends GameInfo<Value.Real> implements Inheritable, Real
 	{
-	
+
 		/** See {@link Property#Property(Property.Key)}. */
 		public Komi(Key key)
 		{
 			super(key);
 		}
-		
+
 		@Override
 		public void setValue(Value.Real value)
 		{
@@ -746,10 +745,10 @@ public class Property<V extends Value> implements Cloneable
 		public void setValue(Value.Text vl)
 		{
 			logger.info("Setting Charset to " + vl.toString());
-			//gameTree.setCharset(vl.toString());
+			// gameTree.setCharset(vl.toString());
 			super.setValue(vl);
 		}
-		
+
 		public void setValue(Value.ValueList vl)
 		{
 			super.setValue(vl);
@@ -789,7 +788,7 @@ public class Property<V extends Value> implements Cloneable
 	public static interface Number
 	{
 	}
-	
+
 	public static interface Real
 	{
 	}
@@ -810,7 +809,7 @@ public class Property<V extends Value> implements Cloneable
 					setValue((Value.Number) vl.get(0));
 				} else
 					throw new IllegalArgumentException(
-							"Cannot set value to a ValueList with length != 1");
+					                "Cannot set value to a ValueList with length != 1");
 			} else
 				super.setValue((Value.Number) v);
 		}
@@ -915,19 +914,19 @@ public class Property<V extends Value> implements Cloneable
 	public final static Key PLAYER_WHITE = new Key("PW");
 
 	/** The SGF Property TiMe. */
-	@SGFProperty(propertyClass = GameInfo.class, priority=74)
+	@SGFProperty(propertyClass = GameInfo.class, priority = 74)
 	public final static Key TIME = new Key("TM");
 
 	/** The SGF Property REsult. */
-	@SGFProperty(propertyClass = GameInfo.class, priority=75)
+	@SGFProperty(propertyClass = GameInfo.class, priority = 75)
 	public final static Key RESULT = new Key("RE");
 
 	/** The SGF Property KoMi. */
-	@SGFProperty(propertyClass = Komi.class, priority=78)
+	@SGFProperty(propertyClass = Komi.class, priority = 78)
 	public final static Key KOMI = new Key("KM");
 
 	/** The SGF Property HAndicap. */
-	@SGFProperty(propertyClass = GameInfo.class, priority=83)
+	@SGFProperty(propertyClass = GameInfo.class, priority = 83)
 	public final static Key HANDICAP = new Key("HA");
 
 	/** The SGF Property SiZe. */
@@ -966,7 +965,10 @@ public class Property<V extends Value> implements Cloneable
 	@SGFProperty(propertyClass = GameInfo.class)
 	public final static Key WHITE_RANK = new Key("WR");
 
-	private final static Key[] addStoneKeys = { ADD_BLACK, ADD_WHITE, ADD_EMPTY };
+	private final static Key[] addStoneKeys =
+	{
+	        ADD_BLACK, ADD_WHITE, ADD_EMPTY
+	};
 
 	/**
 	 * The properties AddWhite, AddBlack and AddEmpty.
@@ -1012,7 +1014,7 @@ public class Property<V extends Value> implements Cloneable
 		} else
 			throw new IllegalArgumentException("Cannot set value to a ValueList with length != 1");
 	}
-	
+
 	/**
 	 * Set the {@link Value} of the property to String <code>newValue</code>.
 	 * This operation is optional, i.e. not all sub-classes might support it.
@@ -1106,7 +1108,7 @@ public class Property<V extends Value> implements Cloneable
 	}
 
 	final static Pattern pattern = Pattern
-			.compile("([wW]|[bB])\\+(resign|R|time|forfeit|(\\d+(?:[.,]\\d*)))|([Jj]igo)");
+	                .compile("([wW]|[bB])\\+(resign|R|time|forfeit|(\\d+(?:[.,]\\d*)))|([Jj]igo)");
 
 	public static String formatResult(Property p)
 	{
@@ -1117,7 +1119,7 @@ public class Property<V extends Value> implements Cloneable
 
 			if (!m.matches()) {
 				logger.warning("Unrecognized result value: "
-						+ p.getValue().toString());
+				                + p.getValue().toString());
 				return p.getValue().toString();
 			} else {
 				if (m.group(4) != null)
@@ -1141,7 +1143,7 @@ public class Property<V extends Value> implements Cloneable
 							return winner + " gewinnt durch Aufgabe";
 						else if (special.equals("time"))
 							return looser
-									+ " verliert durch Zeit\u00fcberschreitung";
+							                + " verliert durch Zeit\u00fcberschreitung";
 						else
 							return winner + " gewinnt";
 					} else

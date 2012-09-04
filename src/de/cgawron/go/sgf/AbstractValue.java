@@ -18,13 +18,22 @@
 
 package de.cgawron.go.sgf;
 
-import de.cgawron.go.MutablePoint;
-import de.cgawron.go.Symmetry;
 import java.io.PrintWriter;
-import java.util.*;
-import java.util.regex.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import de.cgawron.go.MutablePoint;
+import de.cgawron.go.Symmetry;
+import de.cgawron.go.sgf.Value.PointList;
 
 /**
  * An abstract base class for implementations of {@link Value}.
@@ -32,7 +41,7 @@ import java.util.logging.Logger;
 public abstract class AbstractValue implements Value
 {
 	private static Logger logger = Logger.getLogger(AbstractValue.class
-			.getName());
+	                .getName());
 
 	/**
 	 * Write the SGF representation of this Value to an PrintWriter.
@@ -404,8 +413,8 @@ public abstract class AbstractValue implements Value
 	}
 
 	private static class PointList extends
-			java.util.AbstractCollection<de.cgawron.go.Point> implements
-			Value.PointList
+	                java.util.AbstractCollection<de.cgawron.go.Point> implements
+	                Value.PointList
 	{
 		short lx = 255;
 		short ly = 255;
@@ -456,9 +465,9 @@ public abstract class AbstractValue implements Value
 				uy = p.getY();
 			} else if (text.length() == 5) {
 				de.cgawron.go.Point p1 = new de.cgawron.go.Point(
-						text.substring(0, 2));
+				                text.substring(0, 2));
 				de.cgawron.go.Point p2 = new de.cgawron.go.Point(
-						text.substring(3, 5));
+				                text.substring(3, 5));
 
 				short x, y;
 				short xMin, xMax;
@@ -491,7 +500,7 @@ public abstract class AbstractValue implements Value
 
 				if (logger.isLoggable(Level.FINE))
 					logger.fine("PointList: " + xMin + ", " + xMax + ", "
-							+ yMin + ", " + yMax + ", " + this);
+					                + yMin + ", " + yMax + ", " + this);
 			} else
 				throw new ClassCastException(text + " is not a PointList");
 		}
@@ -523,8 +532,8 @@ public abstract class AbstractValue implements Value
 				return true;
 			} else
 				throw new ClassCastException(
-						"Could not add an object of class "
-								+ o.getClass().getName());
+				                "Could not add an object of class "
+				                                + o.getClass().getName());
 		}
 
 		public boolean add(de.cgawron.go.Point p)
@@ -586,7 +595,7 @@ public abstract class AbstractValue implements Value
 		}
 
 		void getMaximumRectangle(SortedSet<de.cgawron.go.Point> ts,
-				SortedSet<de.cgawron.go.Point> r, de.cgawron.go.Point p)
+		                SortedSet<de.cgawron.go.Point> r, de.cgawron.go.Point p)
 		{
 			short width = 0;
 			short height = 0;
@@ -773,7 +782,13 @@ public abstract class AbstractValue implements Value
 		{
 			return number.intValue();
 		}
-		
+
+		@Override
+		public double doubleValue()
+		{
+			return number.doubleValue();
+		}
+
 		public String toString()
 		{
 			return number.toString();
@@ -788,6 +803,7 @@ public abstract class AbstractValue implements Value
 		}
 
 		public void write(PrintWriter out)
+
 		{
 			out.print("[");
 			out.print(number);
@@ -796,7 +812,6 @@ public abstract class AbstractValue implements Value
 
 	}
 
-	
 	protected static class Real extends AbstractValue implements Value.Real
 	{
 		java.lang.Number number;
@@ -815,7 +830,7 @@ public abstract class AbstractValue implements Value
 		{
 			return number.doubleValue();
 		}
-		
+
 		public String toString()
 		{
 			return number.toString();
@@ -838,9 +853,8 @@ public abstract class AbstractValue implements Value
 
 	}
 
-	
 	private static class ValueList extends AbstractValue implements
-			Value.ValueList
+	                Value.ValueList
 	{
 		List<Value> values = new ArrayList<Value>();
 
@@ -857,9 +871,9 @@ public abstract class AbstractValue implements Value
 		{
 			if (!(v instanceof Value))
 				throw new ClassCastException(
-						"Only a Value can be added to a ValueList");
+				                "Only a Value can be added to a ValueList");
 			else if ((v instanceof Value.PointList) && values.size() > 0
-					&& values.get(0) instanceof Value.PointList) {
+			                && values.get(0) instanceof Value.PointList) {
 				Value.PointList pl = (Value.PointList) values.get(0);
 				return pl.addAll((Collection<de.cgawron.go.Point>) v);
 			} else
@@ -959,13 +973,13 @@ public abstract class AbstractValue implements Value
 		}
 
 		public Value set(int index, Value element)
-				throws UnsupportedOperationException
+		                throws UnsupportedOperationException
 		{
 			throw new UnsupportedOperationException();
 		}
 
 		public void add(int index, Value element)
-				throws UnsupportedOperationException
+		                throws UnsupportedOperationException
 		{
 			throw new UnsupportedOperationException();
 		}
