@@ -160,7 +160,7 @@ public class Play extends JFrame implements Evaluator.EvaluatorListener
 						if (best.getValue() < RESIGN)
 							resign();
 						else {
-							Point p = best.move;
+							Point p = best.getMove();
 							goban.move(p, movingColor);
 							gobanUI.setEnabled(true);
 						}
@@ -199,9 +199,9 @@ public class Play extends JFrame implements Evaluator.EvaluatorListener
 		value.setText(Double.toString(event.root.getBestChild().value));
 		goban.resetMarkup();
 		for (AnalysisNode child : event.root.children) {
-			if (child.move != null) {
+			if (child.getMove() != null) {
 				Markup m = new MarkupModel.Text(String.format("%.1f:%d", child.getValue(), child.getVisits()));
-				goban.setMarkup(child.move, m);
+				goban.setMarkup(child.getMove(), m);
 			}
 		}
 	}

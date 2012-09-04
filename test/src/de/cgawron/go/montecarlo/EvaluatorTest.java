@@ -39,7 +39,7 @@ public class EvaluatorTest
 											 testCase.getMovingColor(), testCase.getKomi());
 		evaluator.evaluate(root);
 		AnalysisNode best = root.getBestChild();
-		assertEquals("Testing expected move", testCase.getExpectedMove(), best.move);
+		assertEquals("Testing expected move", testCase.getExpectedMove(), best.getMove());
 		if (testCase.getExpectedScore() != null)
 			assertEquals("Testing expected score", testCase.getExpectedScore(), best.getScore(), best.getVariance());
 		assertEquals("Testing number of iterations", Evaluator.parameters.numSimulations, root.getVisits());

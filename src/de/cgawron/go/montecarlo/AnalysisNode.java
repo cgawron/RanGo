@@ -13,20 +13,21 @@ import de.cgawron.go.Point;
 import de.cgawron.go.montecarlo.AnalysisGoban.Eye;
 import de.cgawron.go.montecarlo.AnalysisGoban.Group;
 
-/** 
- * A node in the analysis tree. It contains the move, the @code{AnalysisGoban} and data needed for the UCT algorithm.
+/**
+ * A node in the analysis tree. It contains the move, the @code{AnalysisGoban}
+ * and data needed for the UCT algorithm.
  * 
  * @author Christian Gawron
- *
+ * 
  */
-class AnalysisNode implements Comparable<AnalysisNode>
+public class AnalysisNode implements Comparable<AnalysisNode>
 {
 	@SuppressWarnings("serial")
 	public class AnalysisException extends RuntimeException
 	{
 		AnalysisGoban goban;
 		Point point;
-		
+
 		public AnalysisException(AnalysisGoban goban, Point point, Exception exception)
 		{
 			super(exception);
@@ -38,13 +39,13 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		public String toString()
 		{
 			return "AnalysisException [goban=" + goban.deepToString() + ", point=" + point
-					+ ", super=" + super.toString() + "]";
+			                + ", super=" + super.toString() + "]";
 		}
 
 	}
 
-	static Logger logger = Logger.getLogger(AnalysisNode.class.getName());	
-	
+	static Logger logger = Logger.getLogger(AnalysisNode.class.getName());
+
 	private int visits = 0;
 	int moveNo;
 	int whiteAtari = -1;
@@ -60,14 +61,15 @@ class AnalysisNode implements Comparable<AnalysisNode>
 
 	AnalysisNode parent;
 	AnalysisGoban goban;
-	Point move;
+
+	private Point move;
 
 	Set<AnalysisNode> children;
 	Map<Point, Miai> miaiMap;
 
 	BoardType movingColor;
-	
-	public AnalysisNode(AnalysisNode analysisNode) 
+
+	public AnalysisNode(AnalysisNode analysisNode)
 	{
 		this.parent = analysisNode;
 		this.boardSize = analysisNode.boardSize;
@@ -76,94 +78,98 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		this.komi = analysisNode.komi;
 		this.miaiMap = analysisNode.miaiMap;
 	}
-	
+
 	public AnalysisNode(Goban goban, BoardType movingColor)
 	{
 		this(goban, movingColor, 6.5);
 	}
-	
-	public AnalysisNode(Goban goban, BoardType movingColor, double komi) 
+
+	public AnalysisNode(Goban goban, BoardType movingColor, double komi)
 	{
-		//this.goban = new OldAnalysisGoban(goban, movingColor);
+		// this.goban = new OldAnalysisGoban(goban, movingColor);
 		this.goban = new AnalysisGoban(goban);
 		this.movingColor = movingColor;
 		this.boardSize = goban.getBoardSize();
 		this.komi = komi;
 		this.miaiMap = new GobanMap<Miai>(this.boardSize);
 		this.moveNo = 0;
-		
+
 		initializeMiai();
 	}
-	
+
 	public void addMiai(Miai miai)
 	{
 		miaiMap.put(miai.p1, miai);
 		miaiMap.put(miai.p2, miai);
 	}
 
-		
 	/**
-	 * Calculate the suitability of a move. 
-	 * The suitability will be used as a probability when choosing a move.
+	 * Calculate the suitability of a move. The suitability will be used as a
+	 * probability when choosing a move.
+	 * 
 	 * @return the suitability of this @code{AnalysisNode}
 	 */
-	double calculateStaticSuitability() 
+	double calculateStaticSuitability()
 	{
 		double suitability = 1;
-		
+
 		// Only play on empty fields
-		if (parent.goban.getStone(move) != BoardType.EMPTY) return 0;
-		
+		if (parent.goban.getStone(getMove()) != BoardType.EMPTY)
+			return 0;
+
 		// Don't play Suicide
-		if (goban.getStone(move) == BoardType.EMPTY) return 0;
-					
+		if (goban.getStone(getMove()) == BoardType.EMPTY)
+			return 0;
+
 		Vector<Point> removed = goban.getRemoved();
 		int saved = getSavedStones();
 
 		// don't fill an eye
-		if (parent.goban.isOneSpaceEye(move) && removed.size() == 0 && saved <= 0) return 0;
-		
+		if (parent.goban.isOneSpaceEye(getMove()) && removed.size() == 0 && saved <= 0)
+			return 0;
+
 		// Capture is good
 		if (removed.size() > 0) {
-			//logger.info("Capturing: " + move + " captures " + removed.size());
+			// logger.info("Capturing: " + move + " captures " +
+			// removed.size());
 			suitability += 2 * removed.size();
 		}
-					
+
 		// Saving stones is good
 		if (saved > 0) {
-			//logger.info("Saving: " + move + " saves " + saved);
-			suitability += 2*saved;
+			// logger.info("Saving: " + move + " saves " + saved);
+			suitability += 2 * saved;
 		}
 
 		Miai miai = null;
-		if (parent.move != null) miai = miaiMap.get(parent.move);
-		if (miai != null && miai.other(parent.move).equals(move)) {
-			//logger.info("miai found!!" + miai);
+		if (parent.getMove() != null)
+			miai = miaiMap.get(parent.getMove());
+		if (miai != null && miai.other(parent.getMove()).equals(getMove())) {
+			// logger.info("miai found!!" + miai);
 			suitability += miai.value;
 		}
-					
+
 		// Self-Atari is discouraged
-		if (saved < 0) 
+		if (saved < 0)
 			suitability *= -1.0 / saved;
-		
-		
-		Eye eye = parent.goban.getEye(move);
+
+		Eye eye = parent.goban.getEye(getMove());
 		Group group = eye.getGroup();
 		if (group != null)
 		{
 			if (group.isAlive()) {
-				if (eye.getPoints().size() > 1 && eye.getPoints().size() < 7) 
+				if (eye.getPoints().size() > 1 && eye.getPoints().size() < 7)
 					return 0;
 				else
 					return suitability /= eye.getPoints().size();
 			}
 			else {
 				// FIXME
-				if (eye.getPoints().size() < 7 && eye.isVitalPoint(move))
+				if (eye.getPoints().size() < 7 && eye.isVitalPoint(getMove()))
 					suitability *= 5;
 			}
 		}
-			
+
 		return suitability;
 	}
 
@@ -171,11 +177,12 @@ class AnalysisNode implements Comparable<AnalysisNode>
 	 * Compare two AnalysisNode by value.
 	 */
 	@Override
-	public int compareTo(AnalysisNode node) {
-		return move.compareTo(node.move);
+	public int compareTo(AnalysisNode node)
+	{
+		return getMove().compareTo(node.getMove());
 	}
 
-	protected AnalysisNode createChild() 
+	protected AnalysisNode createChild()
 	{
 		AnalysisNode child = new AnalysisNode(this);
 		child.moveNo = moveNo + 1;
@@ -184,37 +191,37 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		return child;
 	}
 
-	public AnalysisNode createChild(Point p) 
+	public AnalysisNode createChild(Point p)
 	{
 		synchronized (this) {
 			AnalysisNode child = createChild();
 			// child.goban.checkGoban();
-			child.move = p;
+			child.setMove(p);
 			try {
 				child.goban.move(p, movingColor);
 				// logger.info("createChild: " + p + "\n[" + goban + "]\n[" +
 				// child.goban + "]");
 				updateMiai();
 				child.suitability = child.calculateStaticSuitability();
-			}
-			catch (Exception ex) {
+			} catch (Exception ex) {
 				throw new AnalysisException(child.goban, p, ex);
 			}
 			return child;
 		}
 	}
-	
-	public AnalysisNode createPassNode() 
+
+	public AnalysisNode createPassNode()
 	{
-		//logger.info("creating pass move");
+		// logger.info("creating pass move");
 		AnalysisNode child = createChild();
-		child.move = null;
+		child.setMove(null);
 		child.movingColor = movingColor.opposite();
 		return child;
 	}
-	
+
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(Object obj)
+	{
 		if (this == obj)
 			return true;
 		if (obj == null)
@@ -226,23 +233,23 @@ class AnalysisNode implements Comparable<AnalysisNode>
 			return false;
 		return true;
 	}
-	
+
 	public double evaluateByMC(AnalysisNode[] sequence, int n, double[][] territory)
 	{
-		AnalysisNode currentNode = this; 
-		
+		AnalysisNode currentNode = this;
+
 		int i = n;
 		while (true) {
 			sequence[++i] = currentNode = currentNode.selectRandomMCMove();
 			if (currentNode.isPass() && currentNode.parent.isPass()) {
 				break;
 			}
-			
+
 			if (currentNode.moveNo >= Evaluator.parameters.maxMoves) {
 				throw new RuntimeException("no result");
 			}
-		} 
-		//logger.info("MC: calling evaluateByScoring");
+		}
+		// logger.info("MC: calling evaluateByScoring");
 		return currentNode.evaluateByScoring(territory);
 	}
 
@@ -250,40 +257,41 @@ class AnalysisNode implements Comparable<AnalysisNode>
 	{
 		double chineseScore = Evaluator.chineseScore(this, territory);
 		chineseScore -= komi;
-	
+
 		return chineseScore;
 	}
 
-	int getAtariCount(BoardType movingColor) 
+	int getAtariCount(BoardType movingColor)
 	{
 		switch (movingColor) {
 		case BLACK:
 			if (blackAtari < 0) {
 				blackAtari = goban.getAtariCount(movingColor);
-				//logger.info("getAtariCount(BLACK): " + this);
+				// logger.info("getAtariCount(BLACK): " + this);
 			}
 			return blackAtari;
 
 		case WHITE:
 			if (whiteAtari < 0) {
 				whiteAtari = goban.getAtariCount(movingColor);
-				//logger.info("getAtariCount(WHITE): " + this);
+				// logger.info("getAtariCount(WHITE): " + this);
 			}
 			return whiteAtari;
-			
+
 		case EMPTY:
-		default:	
-			return 0;	
+		default:
+			return 0;
 		}
 	}
-	
-	AnalysisNode getBestChild()
+
+	public AnalysisNode getBestChild()
 	{
 		double max = -1;
 		AnalysisNode best = null;
 		for (AnalysisNode node : children)
 		{
-			//logger.info("move: " + node.move + ", value=" + node.value + ", visits=" + node.visits);
+			// logger.info("move: " + node.move + ", value=" + node.value +
+			// ", visits=" + node.visits);
 			if (node.value > max) {
 				max = node.value;
 				best = node;
@@ -291,57 +299,60 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		}
 		return best;
 	}
-	
-	
-	private int getSavedStones() 
+
+	private int getSavedStones()
 	{
-		int parentAtari = parent.getAtariCount(parent.movingColor);		
+		int parentAtari = parent.getAtariCount(parent.movingColor);
 		int myAtari = getAtariCount(parent.movingColor);
-		
-	    // logger.info("getSavedStones: " + move + ": " + parentAtari + " - " + myAtari);
+
+		// logger.info("getSavedStones: " + move + ": " + parentAtari + " - " +
+		// myAtari);
 		return parentAtari - myAtari;
 	}
-	
+
 	public final double getScore()
 	{
 		return score / getVisits();
 	}
 
-	synchronized public final double getValue() {
+	synchronized public final double getValue()
+	{
 		return value / getVisits();
 	}
 
-	public final double getVariance() {
-		return Math.sqrt((score2 - score*score/getVisits()) / (getVisits() - 1));
+	public final double getVariance()
+	{
+		return Math.sqrt((score2 - score * score / getVisits()) / (getVisits() - 1));
 	}
-	
+
 	@Override
-	public int hashCode() {
-		if (move != null)
+	public int hashCode()
+	{
+		if (getMove() != null)
 			return goban.hashCode();
 		else if (parent != null) {
 			return 31 * parent.hashCode() + 1;
 		}
-		else return 0;
+		else
+			return 0;
 	}
 
-
-	
-	private void initializeMiai() 
+	private void initializeMiai()
 	{
 		updateMiai();
 	}
 
-	public boolean isPass() 
+	public boolean isPass()
 	{
-		return move == null;
+		return getMove() == null;
 	}
-	
-	/** 
-	 * Try to make a (sensible) random move. 
-	 * A move is considered sensible if it is <ul>
-	 * <li> legal,
-	 * <li> does not fill an own eye.
+
+	/**
+	 * Try to make a (sensible) random move. A move is considered sensible if it
+	 * is
+	 * <ul>
+	 * <li>legal,
+	 * <li>does not fill an own eye.
 	 * </ul>
 	 */
 	protected AnalysisNode selectRandomMCMove()
@@ -351,7 +362,8 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		int size = boardSize;
 		for (int i = 0; i < size; i++) {
 			for (int j = 0; j < size; j++) {
-				if (goban.getStone(i, j) != BoardType.EMPTY) continue;
+				if (goban.getStone(i, j) != BoardType.EMPTY)
+					continue;
 				Point p = new Point(i, j);
 				AnalysisNode node = createChild(p);
 				// numNodes++;
@@ -361,10 +373,11 @@ class AnalysisNode implements Comparable<AnalysisNode>
 				}
 			}
 		}
-		
+
 		double random = Math.random();
 		Set<Map.Entry<AnalysisNode, Double>> entries = map.entrySet();
-		//logger.info("selectRandomMove: " + parent.movingColor + " " + totalSuitability + " " + random);
+		// logger.info("selectRandomMove: " + parent.movingColor + " " +
+		// totalSuitability + " " + random);
 		for (Map.Entry<AnalysisNode, Double> entry : entries) {
 			random -= entry.getValue() / totalSuitability;
 			if (random < 0) {
@@ -375,17 +388,18 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		}
 		// logger.info("no suitable move - passing");
 		AnalysisNode node = createPassNode();
-		//if (node.moveNo >= node.hashCodes.size()) node.hashCodes.setSize(node.moveNo + 1);
-		//node.hashCodes.set(node.moveNo, node.goban.hashCode());
+		// if (node.moveNo >= node.hashCodes.size())
+		// node.hashCodes.setSize(node.moveNo + 1);
+		// node.hashCodes.set(node.moveNo, node.goban.hashCode());
 		return node;
 	}
 
-	protected AnalysisNode selectRandomUCTMove() 
+	protected AnalysisNode selectRandomUCTMove()
 	{
 		int _visits = 0;
 		AnalysisNode best = null;
 		double max = -1;
-		
+
 		synchronized (this) {
 			for (AnalysisNode child : children)
 			{
@@ -398,28 +412,30 @@ class AnalysisNode implements Comparable<AnalysisNode>
 					value = 1000 + child.suitability;
 				}
 				else {
-					value = 1 + child.getValue() + Math.sqrt(2*Math.log(_visits)/child.getVisits());
+					value = 1 + child.getValue() + Math.sqrt(2 * Math.log(_visits) / child.getVisits());
 				}
 
-				//logger.info("child=" + child + ", value=" + value);
-				if (value > max) {								
-					if (!child.isIllegalKo() || (child.move == null)) {
+				// logger.info("child=" + child + ", value=" + value);
+				if (value > max) {
+					if (!child.isIllegalKo() || (child.getMove() == null)) {
 						best = child;
 						max = value;
 					}
 				}
 			}
 		}
-		//logger.info("final max=" + max + ", best=" + best);
-		if (best == null) throw new NullPointerException();
+		// logger.info("final max=" + max + ", best=" + best);
+		if (best == null)
+			throw new NullPointerException();
 		assert best != null;
 		return best;
 	}
 
-	boolean isIllegalKo() {
+	boolean isIllegalKo()
+	{
 		boolean illegalKo = false;
-		AnalysisNode node = this; 
-		
+		AnalysisNode node = this;
+
 		while (node.parent != null) {
 			node = node.parent;
 			if (node.goban.equals(this.goban)) {
@@ -429,58 +445,61 @@ class AnalysisNode implements Comparable<AnalysisNode>
 		}
 		return illegalKo;
 	}
-	
+
 	/*
-	private boolean isIllegalKo(AnalysisNode child, AnalysisNode[] sequence, int n) {
-		boolean illegalKo = false;
-		for (int i=n-1; i>=0; i--)
-		{
-			if (sequence[i].goban.equals(child.goban)) {
-				// FIXME
-				illegalKo = true;
-				break;
-			}
-		}
-		AnalysisNode node = sequence[0];
-		while (node.parent != null) {
-			node = node.parent;
-			if (node.goban.equals(child.goban)) {
-				// FIXME!
-				illegalKo = true;
-				break;
-			}
-		}
-		return illegalKo;
-	}
-	*/
+	 * private boolean isIllegalKo(AnalysisNode child, AnalysisNode[] sequence,
+	 * int n) { boolean illegalKo = false; for (int i=n-1; i>=0; i--) { if
+	 * (sequence[i].goban.equals(child.goban)) { // FIXME illegalKo = true;
+	 * break; } } AnalysisNode node = sequence[0]; while (node.parent != null) {
+	 * node = node.parent; if (node.goban.equals(child.goban)) { // FIXME!
+	 * illegalKo = true; break; } } return illegalKo; }
+	 */
 
 	@Override
-	public String toString() {
-		return "AnalysisNode [id=" + hashCode()
-				+ ", parent=" + (parent != null ? parent.hashCode() : "null")
-				+ "\nmove=" + move
-				+ ", moveNo=" + moveNo + ", value=" + getValue() 
-				+ ", score=" + getScore()
-			    + ", variance=" + getVariance()
-				+ ", movingColor=" + movingColor
-				+ "\nvisits=" + getVisits()
-				+ ", blackAtari=" + blackAtari + ", whiteAatari=" + whiteAtari
-				+ ", suitability=" + suitability + "\n" + goban + "]";
-	}
-
-	private void updateMiai() 
+	public String toString()
 	{
-		// TODO Look for miai pairs and add them.	
+		return "AnalysisNode [id=" + hashCode()
+		                + ", parent=" + (parent != null ? parent.hashCode() : "null")
+		                + "\nmove=" + getMove()
+		                + ", moveNo=" + moveNo + ", value=" + getValue()
+		                + ", score=" + getScore()
+		                + ", variance=" + getVariance()
+		                + ", movingColor=" + movingColor
+		                + "\nvisits=" + getVisits()
+		                + ", blackAtari=" + blackAtari + ", whiteAatari=" + whiteAtari
+		                + ", suitability=" + suitability + "\n" + goban + "]";
 	}
 
-	synchronized public void update(double value, double score) {
+	private void updateMiai()
+	{
+		// TODO Look for miai pairs and add them.
+	}
+
+	synchronized public void update(double value, double score)
+	{
 		this.value += value;
 		this.score += score;
 		this.score2 += score * score;
 		this.visits++;
 	}
 
-	synchronized public final int getVisits() {
+	synchronized public final int getVisits()
+	{
 		return visits;
+	}
+
+	public Point getMove()
+	{
+		return move;
+	}
+
+	private void setMove(Point move)
+	{
+		this.move = move;
+	}
+
+	public AnalysisGoban getGoban()
+	{
+		return goban;
 	}
 }

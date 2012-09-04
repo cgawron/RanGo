@@ -32,7 +32,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.FutureTask;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -83,28 +82,29 @@ public class Evaluator
 		public void stateChanged(EvaluatorEvent event);
 	}
 
-	public static class EvaluatorParameters 
+	public static class EvaluatorParameters
 	{
 		@XmlAttribute
 		public int maxMoves = 200;
-		
+
 		@XmlAttribute
-		public int numSimulations = 10000;
-		
+		public int numSimulations = 1000;
+
 		@XmlAttribute
 		public int numThreads = 4;
-		
+
 		@XmlAttribute
 		public int steepness = 1;
-		
+
 		@XmlAttribute
 		public boolean checkTerritory = true;
 
 		@Override
-		public String toString() {
+		public String toString()
+		{
 			return "EvaluatorParameters [maxMoves=" + maxMoves
-					+ ", numSimulations=" + numSimulations + ", numThreads="
-					+ numThreads + ", steepness=" + steepness + "]";
+			                + ", numSimulations=" + numSimulations + ", numThreads="
+			                + numThreads + ", steepness=" + steepness + "]";
 		}
 	}
 
@@ -125,8 +125,7 @@ public class Evaluator
 			try {
 				evaluateSequenceByUCT(node, territory);
 				return node.getValue();
-			}
-			catch (Throwable t) {
+			} catch (Throwable t) {
 				logger.log(Level.SEVERE, "Exception caught", t);
 				throw new ExecutionException(t);
 			}
@@ -135,16 +134,14 @@ public class Evaluator
 	}
 
 	final static Logger logger = Logger.getLogger(Evaluator.class.getName());
- 
-	
+
 	public static EvaluatorParameters parameters;
-	
+
 	public static int chineseScore(AnalysisNode node, double[][] territory)
 	{
 		return node.goban.chineseScore(territory);
 	}
-	
-	
+
 	private ExecutorService executor;
 	private List<EvaluatorListener> listeners = new ArrayList<EvaluatorListener>();
 	private int simulation;
@@ -169,36 +166,40 @@ public class Evaluator
 			// logger.info("Node " + node + " already present!");
 			return;
 		}
-		
-		synchronized (node) {
-		node.children = new HashSet<AnalysisNode>();
-		workingTree.put(node, node);
 
-		for (Point p : Point.all(node.boardSize)) {
-			AnalysisNode child = node.createChild(p);
-			if (child.suitability > 0) {
-				if (workingTree.containsKey(child.goban)) {
-					child = workingTree.get(child.goban);
+		synchronized (node) {
+			node.children = new HashSet<AnalysisNode>();
+			workingTree.put(node, node);
+
+			for (Point p : Point.all(node.boardSize)) {
+				AnalysisNode child = node.createChild(p);
+				if (child.suitability > 0) {
+					if (workingTree.containsKey(child.goban)) {
+						child = workingTree.get(child.goban);
+					}
+					node.children.add(child);
 				}
-				node.children.add(child);
 			}
-		}
-		AnalysisNode child = node.createPassNode();
-		child.value = 0.1;
-		if (workingTree.containsKey(child.goban)) {
-			child = workingTree.get(child.goban);
-		}
-		node.children.add(child);
+			AnalysisNode child = node.createPassNode();
+			child.value = 0.1;
+			if (workingTree.containsKey(child.goban)) {
+				child = workingTree.get(child.goban);
+			}
+			node.children.add(child);
 		}
 	}
-	
 
 	/**
 	 * Dump the analysis tree to a logger.
-	 * @param logger 
-	 * @param root The root of the tree.
-	 * @param depth The desired depth of the dump.
-	 * @param factor Only siblings with value >= factor * max(values) will be included.
+	 * 
+	 * @param logger
+	 * @param root
+	 *            The root of the tree.
+	 * @param depth
+	 *            The desired depth of the dump.
+	 * @param factor
+	 *            Only siblings with value >= factor * max(values) will be
+	 *            included.
 	 */
 	protected void dumpTree(Logger logger, AnalysisNode root, int depth, double factor)
 	{
@@ -218,8 +219,9 @@ public class Evaluator
 			int b = 0;
 			double best = 0;
 			for (AnalysisNode n : currentLevel) {
-				if (n.value > best) best = n.value;
-				if (n.value < factor*best)
+				if (n.value > best)
+					best = n.value;
+				if (n.value < factor * best)
 					break;
 				logger.info("level=" + d + ", n=" + (b++) + ": " + n);
 				if (n.children != null)
@@ -233,13 +235,12 @@ public class Evaluator
 
 	/** Evaluates the score of a Goban */
 
-	
 	/** Evaluates the score of a Goban */
 	public double evaluate(AnalysisNode root)
 	{
-		//FIXME How can we avoid this?
+		// FIXME How can we avoid this?
 		workingTree.clear();
-		
+
 		int boardSize = root.boardSize;
 		createNode(root);
 		if (parameters.checkTerritory)
@@ -252,7 +253,7 @@ public class Evaluator
 		for (simulation = 0; simulation < parameters.numSimulations; simulation++) {
 			Callable<Double> simulation = new RandomSimulator(root, territory);
 			workQueue.add(getExecutor().submit(simulation));
-			
+
 			// evaluateSequenceByUCT(root, territory);
 			// logger.info("simulation " + simulation + ": value=" + root.value
 			// + ", tree size: " + workingTree.size());
@@ -264,7 +265,7 @@ public class Evaluator
 				future = workQueue.peek();
 				if (!future.isDone()) {
 					logger.info("still " + workQueue.size()
-							+ " simulations outstanding, value=" + root.getValue() + ", tree size=" + workingTree.size());
+					                + " simulations outstanding, value=" + root.getValue() + ", tree size=" + workingTree.size());
 					fireStillWorking(root, workQueue.size(), parameters.numSimulations);
 					Thread.sleep(500);
 					continue;
@@ -284,11 +285,11 @@ public class Evaluator
 			for (int i = 0; i < boardSize; i++) {
 				sb.append("\n");
 				for (int j = 0; j < boardSize; j++) {
-					sb.append(String.format(" %3.1f", territory[i][j]/parameters.numSimulations));
+					sb.append(String.format(" %3.1f", territory[i][j] / parameters.numSimulations));
 				}
 			}
 		}
-		
+
 		dumpTree(logger, root, 4, 0.25);
 
 		logger.info("best: " + root.getBestChild() + sb.toString());
@@ -312,16 +313,16 @@ public class Evaluator
 			sequence[i + 1] = sequence[i].selectRandomUCTMove();
 			i++;
 			// logger.info("sequence: i=" + i + ": " + sequence[i].move);
-			if (i > 1 && sequence[i].move == null
-					&& sequence[i - 1].move == null)
+			if (i > 1 && sequence[i].getMove() == null
+			                && sequence[i - 1].getMove() == null)
 				break;
 		}
 		createNode(sequence[i]);
 
 		double score;
 		double value;
-		if (i > 1 && sequence[i].move == null && 
-			sequence[i - 1].move == null) {
+		if (i > 1 && sequence[i].getMove() == null &&
+		                sequence[i - 1].getMove() == null) {
 			// logger.info("end node reached");
 			score = sequence[i].evaluateByScoring(territory);
 		} else {
@@ -333,20 +334,17 @@ public class Evaluator
 
 		// All or nothing ...
 		/*
-			if (result.score < 0)
-				value = 1;
-			else
-				value = 0;
+		 * if (result.score < 0) value = 1; else value = 0;
 		 */
 		// Sigmoid exp(x)/(1+exp(x))
-		double exp = Math.exp(parameters.steepness*score);
-		value = exp / (1+exp);
+		double exp = Math.exp(parameters.steepness * score);
+		value = exp / (1 + exp);
 
-		//logger.info("score=" + score + ", value=" + value);
+		// logger.info("score=" + score + ", value=" + value);
 		updateValues(sequence, i, value, score);
 
 	}
-	
+
 	private void fireDone(AnalysisNode root, int numSimulations)
 	{
 		EvaluatorEvent event = new EvaluatorEvent(root, 0, numSimulations);
@@ -363,17 +361,18 @@ public class Evaluator
 		}
 	}
 
-	public ExecutorService getExecutor() {
+	public ExecutorService getExecutor()
+	{
 		if (executor == null)
 			executor = Executors.newFixedThreadPool(parameters.numThreads);
 		return executor;
 	}
 
-	public void setParameters(EvaluatorParameters parameters) 
+	public void setParameters(EvaluatorParameters parameters)
 	{
 		Evaluator.parameters = parameters;
 	}
-	
+
 	protected void updateValues(AnalysisNode[] sequence, int n, double value, double score)
 	{
 		synchronized (Evaluator.class) {
@@ -381,10 +380,9 @@ public class Evaluator
 				sequence[i].update(value, score);
 
 				/*
-				if (i==1) {
-					logger.info("level 1 update: value=" + value + ", score=" + score + sequence[1]);
-				}
-				*/
+				 * if (i==1) { logger.info("level 1 update: value=" + value +
+				 * ", score=" + score + sequence[1]); }
+				 */
 				value = 1 - value;
 				score = -score;
 			}

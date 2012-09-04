@@ -103,11 +103,21 @@
 	</target>
 
 	<target name="jar" depends="compile" description="Create JAR file">
-		<jar destfile="${dist}/montecarlo.jar" basedir="${build}/classes">
-
-		</jar>
+		<jar destfile="${dist}/montecarlo.jar" basedir="${build}/classes" />
 	</target>
 
+	<target name="gtp-jar" depends="compile" description="Create JAR file">
+		<manifestclasspath property="jar.classpath" jarfile="${dist}/montecarlo-gtp.jar">
+			<classpath refid="classpath" />
+		</manifestclasspath>
+
+		<jar destfile="${dist}/montecarlo-gtp.jar" basedir="${build}/classes">
+			<manifest>
+				<attribute name="Main-Class" value="de.cgawron.go.gtp.RanGoEngine" />
+				<attribute name="Class-Path" value="${jar.classpath}" />
+			</manifest>
+		</jar>
+	</target>
 
 	<target name="junit" depends="compile,compile-test">
 		<junit haltonfailure="off" printsummary="on" showoutput="on" filtertrace="on" fork="on" dir=".">
